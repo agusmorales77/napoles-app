@@ -183,6 +183,13 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
 .dots button { width: 9px; height: 9px; border-radius: 50%; border: 0; background: var(--line); padding: 0; }
 .dots button[aria-current="true"] { background: var(--accent); width: 24px; border-radius: 999px; }
 .fields.two { grid-template-columns: 1fr 1fr; }
+.hours { display: flex; flex-direction: column; gap: 6px; }
+.hrow { display: grid; grid-template-columns: 42px 1fr; gap: 4px 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.hrow:first-child { border-top: 0; }
+.hrow b { grid-row: span 2; font-family: var(--font-display); font-size: 17px; text-transform: uppercase; letter-spacing: .03em; }
+.hband { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.hband input { flex: 1; min-width: 0; height: 40px; padding: 6px 8px; font-size: 15px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 4px; -webkit-appearance: none; appearance: none; }
+.hrow.closed .hband input { opacity: .45; }
 /* Mismo alto para todos los campos: el de hora del celular se dibuja distinto si no se lo fija */
 .f input, .f select, .inp:not(textarea) { height: 48px; line-height: 1.2; }
 .f input[type="time"], .f input[type="date"] { -webkit-appearance: none; appearance: none; display: flex; align-items: center; text-align: left; }
@@ -248,6 +255,7 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
 .s-slots .s-pill { width: 160px; }
 .s-slots.wide .s-pill { width: calc((100% - 36px) / 3); }
 .s-pill { height: 73px; background: var(--pill); border: 1.5px solid var(--pillline); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 500; color: var(--pillink); letter-spacing: .04em; white-space: nowrap; }
+.s-slots.runs .s-pill { width: calc((100% - 18px) / 2); }
 .s-pill.taken { opacity: .4; text-decoration: line-through; text-decoration-thickness: 2px; }
 .s-slots .s-pill.full { width: 100%; opacity: .6; letter-spacing: .3em; font-size: 22px; }
 .s-empty { text-align: center; font-size: 26px; letter-spacing: .2em; color: var(--soft); padding-bottom: 200px; }
@@ -401,6 +409,11 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
         <button class="btn primary" type="button" id="btnUpdate">Actualizar app</button>
         <p class="hint" id="appVersion"></p>
       </div>
+      <h2 style="margin:6px 0 0">Horario de atención</h2>
+      <p class="hint">Los horarios libres de cada día se cargan solos con esto. Si lo cambiás, se rehacen los días que vienen; los turnos ya agendados no se tocan. Dejá una franja vacía si ese día no se trabaja.</p>
+      <label class="f">Un turno cada
+        <select id="fStep"><option value="15">15 minutos</option><option value="20">20 minutos</option><option value="30">30 minutos</option><option value="40">40 minutos</option><option value="45">45 minutos</option><option value="60">1 hora</option></select></label>
+      <div class="hours" id="hoursBox"></div>
       <h2 style="margin:6px 0 0">Apariencia</h2>
       <div class="seg" id="themeSeg" role="group" aria-label="Modo de la app">
         <button type="button" data-theme-v="auto">Automático</button>
@@ -482,7 +495,7 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
 <script>
 const DAYS = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const MONTHS = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
-const MAX_SPAN = 6, MAX_SLOTS = 6, KEY = 'npl-agenda-v1', PHOTO_KEY = 'npl-photo';
+const MAX_SPAN = 6, MAX_SLOTS = 40, KEY = 'npl-agenda-v1', PHOTO_KEY = 'npl-photo';
 const TEMPLATES = [
   { id: 'neon', name: 'Neón' },
   { id: 'outline', name: 'Últimos' },
@@ -518,12 +531,30 @@ function defaultPrices() {
   const it = (name, price) => ({ id: uid(), kind: 'item', name, price });
   return [it('Corte', 15000), it('Barba', 8000), it('Corte + barba', 18000), it('Línea', 1000)];
 }
-// Arranca vacía: sin horarios ni turnos, solo con los precios de la barbería.
+// Horario de atención por día de la semana (0 = domingo), hasta dos franjas; cada `step` minutos hay un turno.
+function defaultSchedule() {
+  const week = { 0: [], 6: [['09:00', '12:00'], ['14:00', '19:00']] };
+  for (let d = 1; d <= 5; d++) week[d] = [['10:00', '12:00'], ['16:00', '21:00']];
+  return { step: 20, week };
+}
+const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const toHm = n => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+// Horarios de un día según la configuración: el último turno termina a la hora de cierre.
+function scheduleTimes(date) {
+  const { step, week } = state.schedule, out = [];
+  for (const [a, b] of week[toDate(date).getDay()] || []) {
+    if (!a || !b) continue;
+    for (let m = toMin(a); m + step <= toMin(b); m += step) out.push(toHm(m));
+  }
+  return out;
+}
+// Arranca sin turnos agendados: los horarios libres salen del horario de atención.
 function example() {
   const mon = mondayOf(new Date());
   return {
     v: 1, brand: 'NAPOLES BARBERIA', handle: '@napolesbarberia.ar', range: '', takenMode: 'hide', template: 'neon', kind: 'turnos',
     from: toIso(mon), to: toIso(addDays(mon, 6)), hidden: {}, whatsapp: '2396 443887', prices: defaultPrices(), days: {},
+    schedule: defaultSchedule(), filled: {},
   };
 }
 // Las primeras versiones traían turnos de ejemplo: si solo hay ejemplos se vacía la agenda; si no, se quitan los ejemplos.
@@ -546,8 +577,9 @@ function migrate(old) {
       return { ...slot(s.t), ...s, serviceId: s.serviceId || match?.id || '', amount: s.amount ?? (s.taken && match ? match.price : null), paid: !!s.paid, attend: s.attend || '' };
     });
   }
-  const out = { brand: 'NAPOLES BARBERIA', handle: '@napolesbarberia.ar', range: '', takenMode: 'hide', template: 'neon', kind: 'turnos', hidden: {}, whatsapp: '2396 443887', ...old, v: 1, prices, days: dropExamples(days) };
+  const out = { brand: 'NAPOLES BARBERIA', handle: '@napolesbarberia.ar', range: '', takenMode: 'hide', template: 'neon', kind: 'turnos', hidden: {}, whatsapp: '2396 443887', filled: {}, ...old, v: 1, prices, days: dropExamples(days) };
   if (!TITLES[out.template]) out.template = 'neon';
+  if (!out.schedule?.week || !(out.schedule.step > 0)) out.schedule = defaultSchedule();
   return out;
 }
 let state;
@@ -566,6 +598,30 @@ const priceItems = () => state.prices.filter(p => p.kind === 'item');
 // Un día oculto lo decide el barbero con el interruptor; si nunca lo tocó, el domingo arranca oculto.
 const isOff = date => date in state.hidden ? !!state.hidden[date] : toDate(date).getDay() === 0;
 const isShown = date => !isOff(date) && slotsOf(date).length > 0;
+// Carga los horarios libres de los días que todavía no se armaron, de hoy en adelante. Un día se arma una sola vez:
+// si después el barbero borra horarios, no vuelven a aparecer.
+function fillDays(dates) {
+  const today = toIso(new Date()), old = toIso(addDays(new Date(), -60));
+  for (const date of Object.keys(state.filled)) if (date < old) delete state.filled[date];
+  for (const date of dates) {
+    if (date < today || state.filled[date]) continue;
+    state.filled[date] = true;
+    if (state.days[date]?.length) continue;
+    const times = scheduleTimes(date);
+    if (times.length) state.days[date] = times.map(t => slot(t));
+  }
+}
+// Al cambiar el horario se rehacen los libres de los días que vienen; los agendados quedan como están.
+function reapplySchedule() {
+  const today = toIso(new Date());
+  for (const date of new Set([...Object.keys(state.filled), ...rangeDates()])) {
+    if (date < today) continue;
+    state.filled[date] = true;
+    const taken = (state.days[date] || []).filter(s => s.taken), busy = new Set(taken.map(s => s.t));
+    const list = [...taken, ...scheduleTimes(date).filter(t => !busy.has(t)).map(t => slot(t))];
+    if (list.length) state.days[date] = list; else delete state.days[date];
+  }
+}
 const bookings = () => Object.entries(state.days).flatMap(([date, list]) => list.filter(s => s.taken).map(s => ({ date, s })));
 
 function autoRange() {
@@ -693,6 +749,20 @@ function brandMark(col) {
 const waIcon = col => `<svg width="34" height="34" viewBox="0 0 24 24"><path fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" d="M4 20l1.2-3.6A8 8 0 1 1 8 19z"/><path fill="${col}" d="M9.2 8.2c.3-.6.6-.6.9-.6h.5c.2 0 .4.1.5.4l.7 1.6c.1.3 0 .5-.1.7l-.5.6c-.1.2-.1.3 0 .5.6 1.1 1.4 1.9 2.5 2.5.2.1.4.1.5-.1l.6-.7c.2-.2.4-.2.6-.1l1.6.8c.3.1.4.3.4.5 0 .6-.2 1.3-.8 1.6-.6.4-1.5.5-2.6.1-2.4-.9-4.3-2.8-5.1-5.1-.3-1-.2-1.8.3-2.7z"/></svg>`;
 
 /* ---------- Historia ---------- */
+// Con muchos horarios en un día no entran uno por uno: los libres seguidos se juntan en franjas ("10 A 12 HS").
+const RUNS_FROM = 9;
+const addStep = t => toHm(toMin(t) + state.schedule.step);
+const hourOnly = t => shortTime(t).replace(/:00$/, '');
+function freeRuns(list) {
+  const out = [];
+  for (const s of list) {
+    const last = out.at(-1);
+    if (s.taken) continue;
+    if (last && addStep(last[1]) === s.t && !list.some(x => x.taken && x.t > last[1] && x.t < s.t)) last[1] = s.t;
+    else out.push([s.t, s.t]);
+  }
+  return out;
+}
 function turnosBody() {
   const hide = state.takenMode === 'hide';
   const rows = rangeDates().filter(isShown).map(date => {
@@ -701,10 +771,12 @@ function turnosBody() {
     if (allTaken && hide) return '';
     const shown = hide ? all.filter(s => !s.taken) : all;
     const dt = toDate(date);
+    const runs = !allTaken && shown.length > RUNS_FROM;
     const pills = allTaken
       ? `<div class="s-pill full">COMPLETO</div>`
+      : runs ? freeRuns(all).map(([a, b]) => `<div class="s-pill">${a === b ? fmtTime(a) : `${hourOnly(a)} A ${hourOnly(addStep(b))} HS`}</div>`).join('')
       : shown.map(s => `<div class="s-pill${s.taken ? ' taken' : ''}" data-slot="${s.id}">${fmtTime(s.t)}</div>`).join('');
-    return `<div class="s-row"><div class="s-day"><div class="s-dname">${DAYS[dt.getDay()]}</div><div class="s-dnum">${dt.getDate()}</div></div><div class="s-slots${shown.length > 4 ? ' wide' : ''}">${pills}</div></div>`;
+    return `<div class="s-row"><div class="s-day"><div class="s-dname">${DAYS[dt.getDay()]}</div><div class="s-dnum">${dt.getDate()}</div></div><div class="s-slots${runs ? ' runs' : shown.length > 4 ? ' wide' : ''}">${pills}</div></div>`;
   }).join('');
   return rows || '<div class="s-empty">SIN TURNOS DISPONIBLES</div>';
 }
@@ -829,7 +901,7 @@ function renderTurnos() {
         ${list.map(s => `<button type="button" class="srow${s.taken ? ' busy' : ''}" data-slot="${s.id}"><b>${shortTime(s.t)}</b>
           <span class="who">${s.taken ? esc([s.client || 'Ocupado', s.service].filter(Boolean).join(' · ')) : 'Libre · tocá para agendar'}</span>
           <span class="st ${s.taken ? 'st-no' : 'st-paid'}">${s.taken ? 'Ocupado' : 'Libre'}</span></button>`).join('')}
-        ${list.length < MAX_SLOTS ? '<button type="button" class="add-row" data-act="add">+ Agregar horario</button>' : '<p class="hint" style="margin-top:8px">Máximo 6 horarios por día.</p>'}
+        ${list.length < MAX_SLOTS ? '<button type="button" class="add-row" data-act="add">+ Agregar horario</button>' : `<p class="hint" style="margin-top:8px">Máximo ${MAX_SLOTS} horarios por día.</p>`}
       </div>` : ''}
     </div>`;
   }).join('');
@@ -876,8 +948,7 @@ daysEl.addEventListener('click', e => {
   if (b.dataset.act === 'add') {
     const date = b.closest('[data-date]').dataset.date;
     const last = slotsOf(date).at(-1)?.t;
-    let t = '10:00';
-    if (last) { const [h, m] = last.split(':').map(Number); t = `${String(Math.min(h + 2, 22)).padStart(2, '0')}:${String(m).padStart(2, '0')}`; }
+    const t = last ? toHm(Math.min(toMin(last) + state.schedule.step, 23 * 60 + 59)) : (scheduleTimes(date)[0] || '10:00');
     const s = slot(t);
     (state.days[date] ||= []).push(s); openDay = date; commit(); openSheet(s.id, true);
   }
@@ -1078,7 +1149,30 @@ function renderSettings() {
   document.querySelectorAll('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === state.takenMode));
   document.getElementById('photoPrev').style.backgroundImage = `url(${BG.foto})`;
   document.getElementById('photoDel').disabled = !photo;
+  renderHours();
 }
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0], WEEK_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+function renderHours() {
+  document.getElementById('fStep').value = String(state.schedule.step);
+  document.getElementById('hoursBox').innerHTML = WEEK_ORDER.map(d => {
+    const bands = state.schedule.week[d] || [];
+    const band = (i, label) => `<div class="hband">${label}<input type="time" data-d="${d}" data-b="${i}" data-e="0" value="${bands[i]?.[0] || ''}" aria-label="${WEEK_SHORT[d]} ${label} desde">a<input type="time" data-d="${d}" data-b="${i}" data-e="1" value="${bands[i]?.[1] || ''}" aria-label="${WEEK_SHORT[d]} ${label} hasta"></div>`;
+    return `<div class="hrow${bands.some(b => b[0] && b[1]) ? '' : ' closed'}"><b>${WEEK_SHORT[d]}</b>${band(0, 'Mañana')}${band(1, 'Tarde')}</div>`;
+  }).join('');
+}
+// Se lee al terminar de elegir la hora (change), no mientras se escribe, para no rehacer los días a cada tecla.
+settings.addEventListener('change', e => {
+  const el = e.target;
+  if (el.id === 'fStep') state.schedule.step = Number(el.value) || 20;
+  else if (el.dataset.d) {
+    const d = el.dataset.d, b = Number(el.dataset.b), wk = state.schedule.week;
+    const bands = [0, 1].map(i => [...(wk[d]?.[i] || ['', ''])]);
+    bands[b][Number(el.dataset.e)] = el.value;
+    if (bands[b][0] && bands[b][1] && bands[b][1] <= bands[b][0]) { toast('La hora de cierre tiene que ser después de la de apertura', 2600); renderHours(); return; }
+    wk[d] = bands;
+  } else return;
+  reapplySchedule(); commit(); toast('Horario actualizado');
+});
 settings.addEventListener('input', e => {
   const id = e.target.id;
   if (id === 'fBrand') state.brand = e.target.value;
@@ -1223,7 +1317,7 @@ function renderTab() {
   if (tab === 'balance') renderBalance();
 }
 function renderAll() { renderSettings(); renderTab(); if (overlay) refreshOverlay(); }
-const commit = () => { save(); renderAll(); };
+const commit = () => { fillDays(rangeDates()); save(); renderAll(); };
 document.querySelector('.tabbar').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.dataset.tab); });
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-go]'); if (!b) return;
@@ -1318,6 +1412,7 @@ function toast(msg, ms = 1800) {
 }
 
 makeBackgrounds();
+fillDays(rangeDates());
 save();
 setTab(tab);
 // Las letras de Google llegan después del primer dibujo: se vuelve a medir para que nada quede cortado.
@@ -1328,7 +1423,7 @@ document.getElementById('btnSettings').addEventListener('click', () => { renderS
 document.getElementById('settingsClose').addEventListener('click', () => { settingsSheet.hidden = true; });
 settingsSheet.addEventListener('click', e => { if (e.target === settingsSheet) settingsSheet.hidden = true; });
 // Actualizar: borra lo que el celular tenga guardado de la página (no los datos) y la vuelve a pedir al servidor.
-const APP_VERSION = '2026-11-02-napoles-b';
+const APP_VERSION = '2026-11-02-napoles-c';
 // Modo claro / oscuro de la app (las historias tienen sus propios colores).
 function applyTheme(t) {
   if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
