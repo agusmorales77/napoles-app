@@ -372,7 +372,7 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
       <div class="ag-filters">
         <label class="f">Desde <input type="date" id="agFrom"></label>
         <label class="f">Hasta <input type="date" id="agTo"></label>
-        <label class="f">Pago <select id="agPay"><option value="all">Todos</option><option value="paid">Pagados</option><option value="pend">Pendientes</option></select></label>
+        <label class="f">Pago <select id="agPay"><option value="all">Todos</option><option value="paid">Pagos</option><option value="pend">Pendientes</option></select></label>
         <label class="f">Asistencia <select id="agAtt"><option value="all">Todas</option><option value="si">Asistió</option><option value="no">No asistió</option><option value="">Sin marcar</option></select></label>
       </div>
       <div class="chips" id="agSummary"></div>
@@ -888,7 +888,7 @@ daysEl.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.data
 /* ---------- Agenda ---------- */
 // El período de la agenda arranca en la semana que se está viendo en Turnos, y se puede cambiar.
 const ag = { from: '', to: '', pay: 'all', att: 'all', q: '', open: null };
-const payLabel = s => s.paid ? 'Pagado' : 'Pendiente de pago';
+const payLabel = s => s.paid ? 'Pago' : 'Pendiente';
 const attLabel = s => s.attend === 'si' ? 'Asistió' : s.attend === 'no' ? 'No asistió' : 'Asistencia sin marcar';
 function renderAgenda() {
   if (!ag.from) { ag.from = state.from; ag.to = state.to; }
@@ -916,7 +916,7 @@ function renderAgenda() {
       <div class="day-head" data-act="toggle" role="button" tabindex="0" aria-expanded="${open}">
         <span class="chev" aria-hidden="true">▶</span>
         <div class="t"><strong>${longDate(date)}</strong><span>${items.length} turno${items.length === 1 ? '' : 's'} · ${money(sum)}</span></div>
-        ${items.some(({ s }) => !s.paid) ? '<span class="pc warn">Pendiente</span>' : '<span class="pc ok">Cobrado</span>'}
+        ${items.some(({ s }) => !s.paid) ? '<span class="pc warn">Pendiente</span>' : '<span class="pc ok">Pago</span>'}
       </div>
       ${open ? `<div class="day-body">${items.map(({ s }) => {
         const phone = (s.phone || '').replace(/\D/g, '');
@@ -946,7 +946,7 @@ document.getElementById('agList').addEventListener('click', e => {
   const card = e.target.closest('.appt'); if (!card || e.target.closest('a')) return;
   const { s } = findSlot(card.dataset.slot); if (!s) return;
   const act = e.target.closest('button')?.dataset.act;
-  if (act === 'pay') { s.paid = !s.paid; commit(); toast(s.paid ? 'Marcado como pagado' : 'Marcado como pendiente'); }
+  if (act === 'pay') { s.paid = !s.paid; commit(); toast(s.paid ? 'Marcado como pago' : 'Marcado como pendiente'); }
   else if (act === 'att') { s.attend = s.attend === '' ? 'si' : s.attend === 'si' ? 'no' : ''; commit(); }
   else openSheet(s.id);
 });
@@ -1140,7 +1140,7 @@ function openSheet(id, isNew = false) {
     </select></label>
     <label class="f">Teléfono <input id="sPhone" type="tel" value="${esc(s.phone)}" placeholder="Opcional" autocomplete="off"></label>
     <span class="hint">Pago</span>
-    <div class="seg" id="sPay"><button type="button" data-v="0">Pendiente</button><button type="button" data-v="1">Pagado</button></div>
+    <div class="seg" id="sPay"><button type="button" data-v="0">Pendiente</button><button type="button" data-v="1">Pago</button></div>
     <span class="hint">Asistencia</span>
     <div class="seg" id="sAtt"><button type="button" data-v="">Sin marcar</button><button type="button" data-v="si">Asistió</button><button type="button" data-v="no">No asistió</button></div>
     <label class="f">Nota <textarea id="sNote" rows="2" placeholder="Opcional">${esc(s.note)}</textarea></label>
