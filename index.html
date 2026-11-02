@@ -518,24 +518,23 @@ function defaultPrices() {
   const it = (name, price) => ({ id: uid(), kind: 'item', name, price });
   return [it('Corte', 15000), it('Barba', 8000), it('Corte + barba', 18000), it('Línea', 1000)];
 }
+// Arranca vacía: sin horarios ni turnos, solo con los precios de la barbería.
 function example() {
-  const prices = defaultPrices();
-  const p = n => prices.find(x => x.name === n);
-  const book = (name, client, paid, attend) => ({ client, serviceId: p(name).id, service: p(name).name, amount: p(name).price, paid, attend });
   const mon = mondayOf(new Date());
-  const iso = n => toIso(addDays(mon, n));
   return {
     v: 1, brand: 'NAPOLES BARBERIA', handle: '@napolesbarberia.ar', range: '', takenMode: 'hide', template: 'neon', kind: 'turnos',
-    from: iso(0), to: iso(6), hidden: {}, whatsapp: '2396 443887', prices,
-    days: {
-      [iso(-5)]: [slot('10:00', book('Corte', 'Ejemplo: Juan', true, 'si')), slot('17:00', book('Corte + barba', 'Ejemplo: Tomi', false, 'si'))],
-      [iso(0)]: [slot('10:00', book('Corte', 'Ejemplo: Nico', true, 'si')), slot('15:20')],
-      [iso(2)]: [slot('10:00'), slot('16:00'), slot('19:00')],
-      [iso(3)]: [slot('10:00'), slot('15:20', book('Barba', 'Ejemplo: Fran', false, '')), slot('18:00'), slot('21:00')],
-      [iso(4)]: [slot('15:20'), slot('17:40', book('Corte + barba', 'Ejemplo: Lucas', false, '')), slot('21:00')],
-      [iso(5)]: [slot('10:00'), slot('11:20'), slot('16:00'), slot('18:30')],
-    },
+    from: toIso(mon), to: toIso(addDays(mon, 6)), hidden: {}, whatsapp: '2396 443887', prices: defaultPrices(), days: {},
   };
+}
+// Las primeras versiones traían turnos de ejemplo: si solo hay ejemplos se vacía la agenda; si no, se quitan los ejemplos.
+function dropExamples(days) {
+  const all = Object.values(days).flat();
+  const isEx = s => /^Ejemplo:/.test(s.client || '');
+  if (!all.some(isEx)) return days;
+  if (!all.some(s => s.taken && !isEx(s))) return {};
+  const out = {};
+  for (const [date, list] of Object.entries(days)) { const keep = list.filter(s => !isEx(s)); if (keep.length) out[date] = keep; }
+  return out;
 }
 // Completa lo que falte en una copia restaurada o en datos guardados.
 function migrate(old) {
@@ -547,7 +546,7 @@ function migrate(old) {
       return { ...slot(s.t), ...s, serviceId: s.serviceId || match?.id || '', amount: s.amount ?? (s.taken && match ? match.price : null), paid: !!s.paid, attend: s.attend || '' };
     });
   }
-  const out = { brand: 'NAPOLES BARBERIA', handle: '@napolesbarberia.ar', range: '', takenMode: 'hide', template: 'neon', kind: 'turnos', hidden: {}, whatsapp: '2396 443887', ...old, v: 1, prices, days };
+  const out = { brand: 'NAPOLES BARBERIA', handle: '@napolesbarberia.ar', range: '', takenMode: 'hide', template: 'neon', kind: 'turnos', hidden: {}, whatsapp: '2396 443887', ...old, v: 1, prices, days: dropExamples(days) };
   if (!TITLES[out.template]) out.template = 'neon';
   return out;
 }
