@@ -186,13 +186,21 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
 .dots button { width: 9px; height: 9px; border-radius: 50%; border: 0; background: var(--line); padding: 0; }
 .dots button[aria-current="true"] { background: var(--accent); width: 24px; border-radius: 999px; }
 .fields.two { grid-template-columns: 1fr 1fr; }
-.hours { display: flex; flex-direction: column; gap: 6px; }
-.hrow { display: grid; grid-template-columns: 42px 1fr; gap: 4px 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.hours { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 6px; }
+.hrow { border-top: 1px solid var(--line); }
 .hrow:first-child { border-top: 0; }
-.hrow b { grid-row: span 2; font-family: var(--font-display); font-size: 17px; text-transform: uppercase; letter-spacing: .03em; }
+.hrow summary { display: flex; align-items: center; gap: 10px; padding: 12px; cursor: pointer; list-style: none; min-height: 48px; }
+.hrow summary::-webkit-details-marker { display: none; }
+.hrow summary::before { content: "▶"; font-size: 10px; color: var(--muted); transition: transform .2s; }
+.hrow[open] summary::before { transform: rotate(90deg); }
+.hrow summary b { width: 92px; font-family: var(--font-display); font-size: 17px; text-transform: uppercase; letter-spacing: .03em; }
+.hrow summary span { flex: 1; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hrow.closed summary span { font-style: italic; }
+.hbody { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }
 .hband { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.hband > i { font-style: normal; width: 56px; flex: none; }
 .hband input { flex: 1; min-width: 0; height: 40px; padding: 6px 8px; font-size: 15px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 4px; -webkit-appearance: none; appearance: none; }
-.hrow.closed .hband input { opacity: .45; }
+
 /* Mismo alto para todos los campos: el de hora del celular se dibuja distinto si no se lo fija */
 .f input, .f select, .inp:not(textarea) { height: 48px; line-height: 1.2; }
 .f input[type="time"], .f input[type="date"] { -webkit-appearance: none; appearance: none; display: flex; align-items: center; text-align: left; }
@@ -1307,6 +1315,12 @@ function renderSettings() {
   renderHours();
 }
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0], WEEK_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+// Días del horario desplegados: se mantienen abiertos al guardar un cambio (que vuelve a dibujar la lista).
+const openHours = new Set();
+document.getElementById('hoursBox').addEventListener('toggle', e => {
+  const d = Number(e.target.dataset.day);
+  if (e.target.open) openHours.add(d); else openHours.delete(d);
+}, true);
 function renderHours() {
   document.getElementById('fMins').value = state.schedule.mins.map(m => String(m).padStart(2, '0')).join(', ');
   document.getElementById('fDur').value = String(state.schedule.dur);
@@ -1314,8 +1328,12 @@ function renderHours() {
   document.getElementById('minsHint').textContent = 'Así queda una hora: ' + state.schedule.mins.map(m => shortTime(toHm(ex + m))).join(', ') + ', y el siguiente a las 11:00' + ' (cada turno de ' + state.schedule.dur + ' minutos).';
   document.getElementById('hoursBox').innerHTML = WEEK_ORDER.map(d => {
     const bands = state.schedule.week[d] || [];
-    const band = (i, label) => `<div class="hband">${label}<input type="time" data-d="${d}" data-b="${i}" data-e="0" value="${bands[i]?.[0] || ''}" aria-label="${WEEK_SHORT[d]} ${label} desde">a<input type="time" data-d="${d}" data-b="${i}" data-e="1" value="${bands[i]?.[1] || ''}" aria-label="${WEEK_SHORT[d]} ${label} hasta"></div>`;
-    return `<div class="hrow${bands.some(b => b[0] && b[1]) ? '' : ' closed'}"><b>${WEEK_SHORT[d]}</b>${band(0, 'Mañana')}${band(1, 'Tarde')}</div>`;
+    const band = (i, label) => `<div class="hband"><i>${label}</i><input type="time" data-d="${d}" data-b="${i}" data-e="0" value="${bands[i]?.[0] || ''}" aria-label="${WEEK_SHORT[d]} ${label} desde">a<input type="time" data-d="${d}" data-b="${i}" data-e="1" value="${bands[i]?.[1] || ''}" aria-label="${WEEK_SHORT[d]} ${label} hasta"></div>`;
+    const set = bands.filter(b => b[0] && b[1]);
+    const sum = set.length ? set.map(b => `${hourOnly(b[0])} a ${hourOnly(b[1])}`).join(' · ') : 'Cerrado';
+    return `<details class="hrow${set.length ? '' : ' closed'}" data-day="${d}"${openHours.has(d) ? ' open' : ''}>
+      <summary><b>${cap(DAYS[d])}</b><span>${sum}</span></summary>
+      <div class="hbody">${band(0, 'Mañana')}${band(1, 'Tarde')}</div></details>`;
   }).join('');
 }
 // Se lee al terminar de elegir la hora (change), no mientras se escribe, para no rehacer los días a cada tecla.
@@ -1597,7 +1615,7 @@ document.getElementById('btnSettings').addEventListener('click', () => { renderS
 document.getElementById('settingsClose').addEventListener('click', () => { settingsSheet.hidden = true; });
 settingsSheet.addEventListener('click', e => { if (e.target === settingsSheet) settingsSheet.hidden = true; });
 // Actualizar: borra lo que el celular tenga guardado de la página (no los datos) y la vuelve a pedir al servidor.
-const APP_VERSION = '2026-11-02-napoles-g';
+const APP_VERSION = '2026-11-02-napoles-h';
 // Modo claro / oscuro de la app (las historias tienen sus propios colores).
 function applyTheme(t) {
   if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
