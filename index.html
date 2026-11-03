@@ -458,6 +458,9 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
       </div>
       <p class="hint" id="minsHint"></p>
       <div class="hours" id="hoursBox"></div>
+      <h2 style="margin:6px 0 0">Cobros</h2>
+      <label class="f">Alias para transferencias <input id="fAlias" placeholder="Ej: napoles.barberia" autocomplete="off" autocapitalize="none"></label>
+      <p class="hint">Va al final del detalle de deuda que se manda por WhatsApp. Vacío: no se agrega.</p>
       <h2 style="margin:6px 0 0">Apariencia</h2>
       <div class="seg" id="themeSeg" role="group" aria-label="Modo de la app">
         <button type="button" data-theme-v="auto">Automático</button>
@@ -1541,7 +1544,9 @@ function debtorRows() {
 function debtText(r) {
   const lines = r.items.map(i => `${dm(i.date)} · ${i.label}: ${money(i.due)}`);
   if (r.credit) lines.push(`A favor: -${money(r.credit)}`);
-  return `Hola ${r.c.name}! Te paso el detalle de tu cuenta en ${state.brand}:\n${lines.join('\n')}\n${r.total >= 0 ? 'Total' : 'A tu favor'}: ${money(Math.abs(r.total))}`;
+  // El alias (Configuración → Cobros) va al final, solo si debe algo.
+  const alias = r.total > 0 && state.alias ? `\n\nPodés transferir al alias: ${state.alias}` : '';
+  return `Hola ${r.c.name}! Te paso el detalle de tu cuenta en ${state.brand}:\n${lines.join('\n')}\n${r.total >= 0 ? 'Total' : 'A tu favor'}: ${money(Math.abs(r.total))}${alias}`;
 }
 function renderDeudores() {
   document.getElementById('debtSort').value = debtSort;
@@ -1781,6 +1786,7 @@ function renderSettings() {
   document.getElementById('fHandle').value = state.handle;
   const r = document.getElementById('fRange'); r.value = state.range; r.placeholder = autoRange();
   document.getElementById('fWa').value = state.whatsapp || '';
+  document.getElementById('fAlias').value = state.alias || '';
   document.querySelectorAll('#modeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === state.takenMode));
   document.getElementById('photoPrev').style.backgroundImage = `url(${BG.foto})`;
   document.getElementById('photoDel').disabled = !photo;
@@ -1832,6 +1838,7 @@ settings.addEventListener('input', e => {
   else if (id === 'fHandle') state.handle = e.target.value;
   else if (id === 'fRange') state.range = e.target.value;
   else if (id === 'fWa') state.whatsapp = e.target.value;
+  else if (id === 'fAlias') { state.alias = e.target.value.trim(); save(); return; }
   else return;
   save(); renderStories();
 });
@@ -2098,7 +2105,7 @@ document.getElementById('btnSettings').addEventListener('click', () => { renderS
 document.getElementById('settingsClose').addEventListener('click', () => { settingsSheet.hidden = true; });
 settingsSheet.addEventListener('click', e => { if (e.target === settingsSheet) settingsSheet.hidden = true; });
 // Actualizar: borra lo que el celular tenga guardado de la página (no los datos) y la vuelve a pedir al servidor.
-const APP_VERSION = '2026-11-03-napoles-i';
+const APP_VERSION = '2026-11-03-napoles-j';
 // Modo claro / oscuro de la app (las historias tienen sus propios colores).
 function applyTheme(t) {
   if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
