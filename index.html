@@ -601,13 +601,12 @@ function migrate(old) {
   const out = { brand: 'NAPOLES BARBERIA', handle: '@napolesbarberia.ar', range: '', takenMode: 'hide', template: 'neon', kind: 'turnos', hidden: {}, whatsapp: '2396 443887', filled: {}, fixed: [], ...old, v: 1, prices, days: dropExamples(days) };
   if (!TITLES[out.template]) out.template = 'neon';
   if (!out.schedule?.week) out.schedule = defaultSchedule();
-  // La primera versión guardaba "un turno cada N minutos".
-  if (!Array.isArray(out.schedule.mins)) {
-    const step = out.schedule.step > 0 ? out.schedule.step : 20;
-    out.schedule = { mins: step >= 60 ? [0] : Array.from({ length: Math.floor(59 / step) + 1 }, (_, i) => i * step), dur: step, week: out.schedule.week };
-  }
+  // La primera versión guardaba "un turno cada 20 minutos" (tres por hora); Napoles da dos por hora: se queda con
+  // los días y horas que había y toma los minutos y la duración nuevos.
+  if (!Array.isArray(out.schedule.mins)) out.schedule = { ...defaultSchedule(), week: out.schedule.week };
   // La versión anterior traía los turnos de 20 minutos; en Napoles son de media hora.
-  if (!out.schedule.v2) { if (out.schedule.mins.join() === '0,20' && out.schedule.dur === 20) out.schedule.dur = 30; out.schedule.v2 = true; }
+  // Los días ya armados con la versión de "cada 20 minutos" (10:00, 10:20, 10:40) se rehacen con el horario nuevo.
+  if (!out.schedule.v2) { if (out.schedule.mins.join() === '0,20' && out.schedule.dur === 20) out.schedule.dur = 30; out.schedule.v2 = true; out.reapply = true; }
   return out;
 }
 let state;
@@ -1580,6 +1579,7 @@ function toast(msg, ms = 1800) {
 }
 
 makeBackgrounds();
+if (state.reapply) { delete state.reapply; reapplySchedule(); }
 fillDays(rangeDates());
 syncFixed();
 save();
@@ -1592,7 +1592,7 @@ document.getElementById('btnSettings').addEventListener('click', () => { renderS
 document.getElementById('settingsClose').addEventListener('click', () => { settingsSheet.hidden = true; });
 settingsSheet.addEventListener('click', e => { if (e.target === settingsSheet) settingsSheet.hidden = true; });
 // Actualizar: borra lo que el celular tenga guardado de la página (no los datos) y la vuelve a pedir al servidor.
-const APP_VERSION = '2026-11-02-napoles-e';
+const APP_VERSION = '2026-11-02-napoles-f';
 // Modo claro / oscuro de la app (las historias tienen sus propios colores).
 function applyTheme(t) {
   if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
