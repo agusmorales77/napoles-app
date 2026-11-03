@@ -413,7 +413,7 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
         <p class="hint" id="appVersion"></p>
       </div>
       <h2 style="margin:6px 0 0">Horario de atención</h2>
-      <p class="hint">Los horarios libres de cada día se cargan solos con esto. Si lo cambiás, se rehacen los días que vienen; los turnos ya agendados y los clientes fijos no se tocan. La hora de cierre también tiene turno (cierre 21 → último turno 21:00). Dejá una franja vacía si ese día no se trabaja.</p>
+      <p class="hint">Los horarios libres de cada día se cargan solos con esto. Si lo cambiás, se rehacen los días que vienen; los turnos ya agendados y los clientes fijos no se tocan. La hora de cierre también tiene turno (cierre 22 → último turno 22:00). Dejá una franja vacía si ese día no se trabaja.</p>
       <div class="fields two">
         <label class="f">Turnos en cada hora, a los minutos <input id="fMins" inputmode="numeric" placeholder="Ej: 00, 20"></label>
         <label class="f">Cada turno dura
@@ -554,7 +554,7 @@ function defaultPrices() {
 // turno dura `dur` minutos (Napoles: media hora, dos turnos por hora).
 function defaultSchedule() {
   const week = { 0: [], 6: [['09:00', '12:00'], ['14:00', '19:00']] };
-  for (let d = 1; d <= 5; d++) week[d] = [['10:00', '12:00'], ['16:00', '21:00']];
+  for (let d = 1; d <= 5; d++) week[d] = [['10:00', '12:00'], ['16:00', '22:00']];
   return { mins: [0, 20], dur: 30, week };
 }
 const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
@@ -607,6 +607,11 @@ function migrate(old) {
   // La versión anterior traía los turnos de 20 minutos; en Napoles son de media hora.
   // Los días ya armados con la versión de "cada 20 minutos" (10:00, 10:20, 10:40) se rehacen con el horario nuevo.
   if (!out.schedule.v2) { if (out.schedule.mins.join() === '0,20' && out.schedule.dur === 20) out.schedule.dur = 30; out.schedule.v2 = true; out.reapply = true; }
+  // Lunes a viernes la tarde pasó de 16-21 a 16-22 (solo si no la habían cambiado a mano).
+  if (!out.schedule.v3) {
+    for (let d = 1; d <= 5; d++) { const t = out.schedule.week[d]?.[1]; if (t?.[0] === '16:00' && t[1] === '21:00') t[1] = '22:00'; }
+    out.schedule.v3 = true; out.reapply = true;
+  }
   return out;
 }
 let state;
@@ -1592,7 +1597,7 @@ document.getElementById('btnSettings').addEventListener('click', () => { renderS
 document.getElementById('settingsClose').addEventListener('click', () => { settingsSheet.hidden = true; });
 settingsSheet.addEventListener('click', e => { if (e.target === settingsSheet) settingsSheet.hidden = true; });
 // Actualizar: borra lo que el celular tenga guardado de la página (no los datos) y la vuelve a pedir al servidor.
-const APP_VERSION = '2026-11-02-napoles-f';
+const APP_VERSION = '2026-11-02-napoles-g';
 // Modo claro / oscuro de la app (las historias tienen sus propios colores).
 function applyTheme(t) {
   if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
