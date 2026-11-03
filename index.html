@@ -550,11 +550,12 @@ function defaultPrices() {
   return [it('Corte', 15000), it('Barba', 8000), it('Corte + barba', 18000), it('Línea', 1000)];
 }
 // Horario de atención por día de la semana (0 = domingo), hasta dos franjas. En cada hora hay turno a los
-// minutos de `mins` (Napoles: en punto y a los 20), y cada turno dura `dur` minutos.
+// minutos de `mins` (Napoles: en punto y a los 20; al de las y 20 se lo cita antes para que espere), y cada
+// turno dura `dur` minutos (Napoles: media hora, dos turnos por hora).
 function defaultSchedule() {
   const week = { 0: [], 6: [['09:00', '12:00'], ['14:00', '19:00']] };
   for (let d = 1; d <= 5; d++) week[d] = [['10:00', '12:00'], ['16:00', '21:00']];
-  return { mins: [0, 20], dur: 20, week };
+  return { mins: [0, 20], dur: 30, week };
 }
 const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 const toHm = n => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
@@ -605,6 +606,8 @@ function migrate(old) {
     const step = out.schedule.step > 0 ? out.schedule.step : 20;
     out.schedule = { mins: step >= 60 ? [0] : Array.from({ length: Math.floor(59 / step) + 1 }, (_, i) => i * step), dur: step, week: out.schedule.week };
   }
+  // La versión anterior traía los turnos de 20 minutos; en Napoles son de media hora.
+  if (!out.schedule.v2) { if (out.schedule.mins.join() === '0,20' && out.schedule.dur === 20) out.schedule.dur = 30; out.schedule.v2 = true; }
   return out;
 }
 let state;
@@ -1304,7 +1307,7 @@ function renderHours() {
   document.getElementById('fMins').value = state.schedule.mins.map(m => String(m).padStart(2, '0')).join(', ');
   document.getElementById('fDur').value = String(state.schedule.dur);
   const ex = toMin('10:00');
-  document.getElementById('minsHint').textContent = 'Así queda una hora: ' + state.schedule.mins.map(m => shortTime(toHm(ex + m))).join(', ') + ' (cada turno de ' + state.schedule.dur + ' minutos).';
+  document.getElementById('minsHint').textContent = 'Así queda una hora: ' + state.schedule.mins.map(m => shortTime(toHm(ex + m))).join(', ') + ', y el siguiente a las 11:00' + ' (cada turno de ' + state.schedule.dur + ' minutos).';
   document.getElementById('hoursBox').innerHTML = WEEK_ORDER.map(d => {
     const bands = state.schedule.week[d] || [];
     const band = (i, label) => `<div class="hband">${label}<input type="time" data-d="${d}" data-b="${i}" data-e="0" value="${bands[i]?.[0] || ''}" aria-label="${WEEK_SHORT[d]} ${label} desde">a<input type="time" data-d="${d}" data-b="${i}" data-e="1" value="${bands[i]?.[1] || ''}" aria-label="${WEEK_SHORT[d]} ${label} hasta"></div>`;
@@ -1589,7 +1592,7 @@ document.getElementById('btnSettings').addEventListener('click', () => { renderS
 document.getElementById('settingsClose').addEventListener('click', () => { settingsSheet.hidden = true; });
 settingsSheet.addEventListener('click', e => { if (e.target === settingsSheet) settingsSheet.hidden = true; });
 // Actualizar: borra lo que el celular tenga guardado de la página (no los datos) y la vuelve a pedir al servidor.
-const APP_VERSION = '2026-11-02-napoles-d';
+const APP_VERSION = '2026-11-02-napoles-e';
 // Modo claro / oscuro de la app (las historias tienen sus propios colores).
 function applyTheme(t) {
   if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
