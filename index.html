@@ -147,6 +147,34 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
 .pr .n small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
 .st-fixed { background: var(--fg); color: var(--bg); }
 .f input:disabled, .f select:disabled, .f textarea:disabled { opacity: .55; }
+.svc-box { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.pick-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick { border: 1px solid var(--line); background: transparent; border-radius: 3px; padding: 8px 12px; font-size: 13px; font-weight: 500; color: var(--fg); min-height: 40px; }
+.pick[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.pick:disabled { opacity: .55; }
+.pay-line { display: flex; flex-direction: column; gap: 8px; }
+.pay-line b, .pay-result { font-weight: 600; font-size: 15px; margin: 0; }
+.pay-line b.ok, .pay-result.ok { color: var(--ok); }
+.pay-line b.bad, .pay-result.bad { color: var(--danger); }
+.cli-pane { display: flex; flex-direction: column; gap: 8px; }
+.debt-tools { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+.debtor .amt { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 17px; white-space: nowrap; }
+.debtor .amt.fav { color: var(--ok); }
+.debtor .day-body { gap: 10px; }
+.dl-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 9px 2px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.dl-row[role="button"] { cursor: pointer; }
+.dl-row .d { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
+.dl-row .n { min-width: 0; overflow-wrap: anywhere; }
+.dl-row .v { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dl-row small { display: block; color: var(--muted); font-size: 12px; }
+.dl-row.credit .v { color: var(--ok); }
+.dl-total { display: flex; justify-content: space-between; padding: 4px 2px; font-weight: 700; font-size: 17px; }
+.mov-day { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 12px 0 2px; }
+.mov { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 9px 2px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.mov b { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mov > span:not(.v) { font-size: 12px; color: var(--muted); grid-column: 1; overflow-wrap: anywhere; }
+.mov .v { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mov .v.in { color: var(--ok); } .mov .v.out { color: var(--warn); }
 .pencil { width: 44px; height: 44px; border: 1px solid var(--line); background: transparent; border-radius: 4px; display: grid; place-items: center; color: var(--muted); }
 .pencil:hover { color: var(--fg); border-color: var(--muted); }
 
@@ -208,7 +236,7 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
 .photo-prev { width: 64px; aspect-ratio: 9/16; border-radius: 3px; background: var(--chip) center/cover; border: 1px solid var(--line); flex: none; }
 
 /* Ficha */
-.sheet-bg { position: fixed; inset: 0; z-index: 80; background: rgba(25, 18, 14, .5); display: flex; align-items: flex-end; justify-content: center; }
+.sheet-bg { position: fixed; inset: 0; z-index: 80; background: rgba(0, 0, 0, .55); display: flex; align-items: flex-end; justify-content: center; }
 @media (min-width: 640px) { .sheet-bg { align-items: center; } }
 .sheet {
   background: var(--panel); color: var(--fg); width: 100%; max-width: 480px; border-radius: 10px 10px 0 0;
@@ -468,13 +496,26 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
     </div>
 </div>
 
-  <!-- Clientes fijos -->
+  <!-- Clientes: fijos y deudores -->
   <section id="tab-clientes" class="shell-tab" hidden style="flex-direction:column;gap:12px">
-    <div class="card">
+    <div class="seg" id="cliSeg" role="group" aria-label="Clientes"><button type="button" data-cli="fijos">Clientes fijos</button><button type="button" data-cli="deudores">Deudores</button></div>
+    <div class="card" id="cliFijos">
       <h2>Clientes fijos</h2>
-      <p class="hint">Cargá el cliente con su día y horario: el turno queda reservado solo, todas las semanas, y tiene prioridad sobre los demás. No se puede cambiar desde Turnos, solo desde acá.</p>
+      <p class="hint">Cargá el cliente con su día, horario y precio: el turno queda reservado solo y tiene prioridad sobre los demás. No se puede cambiar desde Turnos, solo desde acá.</p>
       <div id="fixedList"></div>
       <button class="btn primary" type="button" id="addFixed">+ Cliente fijo</button>
+    </div>
+    <div class="cli-pane" id="cliDeudores" hidden>
+      <div class="card">
+        <h2>Deudores</h2>
+        <p class="hint">Las deudas que anotás y los turnos que ya pasaron sin cobrar, juntos por cliente. Tocá un cliente para ver el detalle y sacarle captura.</p>
+        <div class="chips" id="debtSummary"></div>
+        <div class="debt-tools">
+          <label class="f">Ordenar <select id="debtSort"><option value="old">Deuda más vieja</option><option value="new">Deuda más nueva</option><option value="big">Mayor deuda</option><option value="az">A – Z</option></select></label>
+          <button class="btn primary" type="button" id="addDebt">+ Deuda</button>
+        </div>
+      </div>
+      <div id="debtList" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </section>
 
@@ -503,6 +544,11 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
     <div class="kpis" id="kpis"></div>
     <div class="card"><h2>Por servicio</h2><div class="legend"><span><i style="background:var(--ok)"></i>Cobrado</span><span><i style="background:var(--warn)"></i>Por cobrar</span></div><div id="bySvc" style="display:flex;flex-direction:column;gap:12px"></div></div>
     <div class="card"><h2>Por cobrar</h2><div id="debts"></div></div>
+    <div class="card"><h2>Movimientos del mes</h2>
+      <label class="f">Día <select id="movDay"></select></label>
+      <p class="hint">Tocá un movimiento para editarlo, ajustarlo o borrarlo.</p>
+      <div id="movList"></div>
+    </div>
   </section>
 </div>
 
@@ -553,10 +599,20 @@ const monthName = key => { const [y, m] = key.split('-').map(Number); return `${
 const longDate = iso => { const d = toDate(iso); return `${cap(DAYS[d.getDay()])} ${d.getDate()} de ${MONTHS[d.getMonth()].toLowerCase()}`; };
 
 /* ---------- Datos ---------- */
-const slot = (t, b) => ({ id: uid(), t, taken: false, fixedId: '', client: '', phone: '', note: '', serviceId: '', service: '', amount: null, paid: false, attend: '', ...(b || {}), ...(b ? { taken: true } : {}) });
+const slot = (t, b) => ({ id: uid(), t, taken: false, fixedId: '', clientId: '', extras: [], pays: [], client: '', phone: '', note: '', serviceId: '', service: '', amount: null, paid: false, attend: '', ...(b || {}), ...(b ? { taken: true } : {}) });
+// Cada persona es un cliente (state.clients) y sus turnos lo apuntan con clientId: así las deudas de "Juan" se juntan
+// aunque venga en distintos días. El nombre se compara sin mayúsculas ni tildes.
+const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+function clientFor(name, phone, list = state.clients) {
+  const n = norm(name); if (!n) return null;
+  let c = list.find(c => norm(c.name) === n);
+  if (!c) { c = { id: uid(), name: String(name).replace(/\s+/g, ' ').trim(), phone: '', debts: [], credits: [] }; list.push(c); }
+  if (phone && !c.phone) c.phone = phone;
+  return c;
+}
 function defaultPrices() {
-  const it = (name, price) => ({ id: uid(), kind: 'item', name, price });
-  return [it('Corte', 15000), it('Barba', 8000), it('Corte + barba', 18000), it('Línea', 1000)];
+  const it = (name, price, extra = false) => ({ id: uid(), kind: 'item', name, price, extra });
+  return [it('Corte', 15000), it('Barba', 8000), it('Corte + barba', 18000), it('Línea', 1000, true)];
 }
 // Horario de atención por día de la semana (0 = domingo), hasta dos franjas. En cada hora hay turno a los
 // minutos de `mins` (Napoles: en punto y a los 20; al de las y 20 se lo cita antes para que espere), y cada
@@ -584,7 +640,7 @@ function example() {
   return {
     v: 1, brand: 'NAPOLES BARBERIA', handle: '@napolesbarberia.ar', range: '', takenMode: 'hide', template: 'neon', kind: 'turnos',
     from: toIso(mon), to: toIso(addDays(mon, 6)), hidden: {}, whatsapp: '2396 443887', prices: defaultPrices(), days: {},
-    schedule: defaultSchedule(), filled: {}, fixed: [],
+    schedule: defaultSchedule(), filled: {}, fixed: [], clients: [],
   };
 }
 // Las primeras versiones traían turnos de ejemplo: si solo hay ejemplos se vacía la agenda; si no, se quitan los ejemplos.
@@ -621,13 +677,37 @@ function migrate(old) {
     for (let d = 1; d <= 5; d++) { const t = out.schedule.week[d]?.[1]; if (t?.[0] === '16:00' && t[1] === '21:00') t[1] = '22:00'; }
     out.schedule.v3 = true; out.reapply = true;
   }
+  // Cuentas: la Línea es adicional, el pago pasa a ser un monto (antes era sí/no) y los turnos apuntan a su cliente.
+  for (const p of out.prices) if (p.kind === 'item' && p.extra === undefined) p.extra = /^linea/.test(norm(p.name));
+  out.clients = (out.clients || []).map(c => ({ phone: '', debts: [], credits: [], ...c }));
+  for (const [date, list] of Object.entries(out.days)) for (const s of list) {
+    s.extras ||= [];
+    s.pays ||= [];
+    // Antes "Pago" era un sí/no: pasa a ser un cobro por el total, con la fecha del turno.
+    if (s.paid && s.amount && !s.pays.length) { s.pays.push({ id: uid(), gid: uid(), date, amount: s.amount, via: 'cash' }); s.paid = false; }
+    if (s.taken && s.client && !s.clientId) s.clientId = clientFor(s.client, s.phone, out.clients)?.id || '';
+  }
+  for (const c of out.fixed) {
+    c.extras ||= [];
+    // "Cada 2 semanas" pasa a semanas del mes: 1º y 3º o 2º y 4º, según cuándo arrancaba.
+    if (!Array.isArray(c.weeks)) {
+      const first = addDays(toDate(c.from), (c.dow - toDate(c.from).getDay() + 7) % 7);
+      c.weeks = c.every === 2 ? (Math.ceil(first.getDate() / 7) % 2 ? [1, 3] : [2, 4]) : [];
+      delete c.every;
+      if (c.amount == null) c.amount = out.prices.find(p => p.id === c.serviceId)?.price ?? null;
+    }
+    if (!c.clientId) c.clientId = clientFor(c.name, c.phone, out.clients)?.id || '';
+  }
   return out;
 }
 let state;
 try {
   const saved = localStorage.getItem(KEY);
   state = saved ? migrate(JSON.parse(saved)) : example();
-} catch (e) { state = example(); }
+} catch (e) {
+  try { const saved = localStorage.getItem(KEY); if (saved) localStorage.setItem(KEY + '-copia-' + Date.now(), saved); } catch (err) {}
+  state = example();
+}
 let photo = '';
 try { photo = localStorage.getItem(PHOTO_KEY) || ''; } catch (e) {}
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { toast('No se pudo guardar en este navegador', 2600); } }
@@ -663,11 +743,11 @@ function reapplySchedule() {
     if (list.length) state.days[date] = list; else delete state.days[date];
   }
 }
-// Clientes fijos: todas las semanas (o cada 2) el mismo día y horario. Su turno se reserva solo, tiene prioridad
+// Clientes fijos: el mismo día y horario, todas las semanas o algunas semanas del mes. Su turno se reserva solo, tiene prioridad
 // sobre lo que hubiera agendado en ese horario y no se edita desde Turnos, solo desde Clientes.
 function fixedOn(c, date) {
   if (date < c.from || toDate(date).getDay() !== c.dow) return false;
-  return Math.floor(diffDays(c.from, date) / 7) % (c.every || 1) === 0;
+  return !c.weeks?.length || c.weeks.includes(Math.ceil(toDate(date).getDate() / 7));
 }
 function syncFixed() {
   const today = toIso(new Date());
@@ -687,8 +767,7 @@ function syncFixed() {
         s = list.find(x => x.t === c.t && !x.fixedId);
         if (s) Object.assign(s, slot(c.t), { id: s.id }); else list.push(s = slot(c.t));
       }
-      const p = state.prices.find(p => p.id === c.serviceId);
-      Object.assign(s, { taken: true, fixedId: c.id, client: c.name, phone: c.phone, note: c.note, serviceId: p ? p.id : '', service: p ? p.name : '', amount: c.amount ?? p?.price ?? null });
+      Object.assign(s, { taken: true, fixedId: c.id, clientId: c.clientId || '', client: c.name, phone: c.phone, note: c.note, serviceId: c.serviceId || '', extras: c.extras || [], service: svcName(c.serviceId, c.extras), amount: c.amount ?? null });
     }
     if (list.length) state.days[date] = list; else delete state.days[date];
   }
@@ -1029,7 +1108,7 @@ daysEl.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.data
 /* ---------- Agenda ---------- */
 // El período de la agenda arranca en la semana que se está viendo en Turnos, y se puede cambiar.
 const ag = { from: '', to: '', pay: 'all', att: 'all', q: '', open: null };
-const payLabel = s => s.paid ? 'Pago' : 'Pendiente';
+const payLabel = s => payState(s);
 const attLabel = s => s.attend === 'si' ? 'Asistió' : s.attend === 'no' ? 'No asistió' : 'Asistencia sin marcar';
 function renderAgenda() {
   if (!ag.from) { ag.from = state.from; ag.to = state.to; }
@@ -1040,11 +1119,11 @@ function renderAgenda() {
   const q = ag.q.trim().toLowerCase();
   const list = bookings().filter(({ date, s }) =>
     (!ag.from || date >= ag.from) && (!ag.to || date <= ag.to) &&
-    (ag.pay === 'all' || (ag.pay === 'paid') === s.paid) &&
+    (ag.pay === 'all' || (ag.pay === 'paid') === isPaid(s)) &&
     (ag.att === 'all' || s.attend === ag.att) &&
     (!q || `${s.client} ${s.service} ${s.phone}`.toLowerCase().includes(q)));
   const total = list.reduce((n, { s }) => n + (s.amount || 0), 0);
-  const pend = list.filter(({ s }) => !s.paid && s.attend !== 'no').reduce((n, { s }) => n + (s.amount || 0), 0);
+  const pend = list.filter(({ s }) => s.attend !== 'no').reduce((n, { s }) => n + dueOf(s), 0);
   document.getElementById('agSummary').innerHTML = `<span class="pc">${list.length} turno${list.length === 1 ? '' : 's'}</span><span class="pc">${money(total)}</span>${pend ? `<span class="pc warn">${money(pend)} por cobrar</span>` : ''}`;
   const byDay = {};
   for (const b of list) (byDay[b.date] ||= []).push(b);
@@ -1057,7 +1136,7 @@ function renderAgenda() {
       <div class="day-head" data-act="toggle" role="button" tabindex="0" aria-expanded="${open}">
         <span class="chev" aria-hidden="true">▶</span>
         <div class="t"><strong>${longDate(date)}</strong><span>${items.length} turno${items.length === 1 ? '' : 's'} · ${money(sum)}</span></div>
-        ${items.some(({ s }) => !s.paid) ? '<span class="pc warn">Pendiente</span>' : '<span class="pc ok">Pago</span>'}
+        ${items.some(({ s }) => !isPaid(s) && s.attend !== 'no') ? '<span class="pc warn">Pendiente</span>' : '<span class="pc ok">Pago</span>'}
       </div>
       ${open ? `<div class="day-body">${items.map(({ s }) => {
         const phone = (s.phone || '').replace(/\D/g, '');
@@ -1067,7 +1146,7 @@ function renderAgenda() {
           <span class="amt">${s.amount ? money(s.amount) : '—'}</span>
           <span class="svc">${s.fixedId ? 'Cliente fijo · ' : ''}${esc(s.service || 'Servicio sin elegir')}</span>
           <div class="acts">
-            <button type="button" data-act="pay" class="${s.paid ? 'st-paid' : 'st-pend'}">${payLabel(s)}</button>
+            <button type="button" data-act="pay" class="${isPaid(s) ? 'st-paid' : 'st-pend'}">${payLabel(s)}</button>
             <button type="button" data-act="att" class="${s.attend === 'si' ? 'st-paid' : s.attend === 'no' ? 'st-no' : 'st-none'}">${attLabel(s)}</button>
             ${phone ? `<a class="wa" href="https://wa.me/${phone.startsWith('54') ? phone : '549' + phone}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
           </div>
@@ -1085,9 +1164,10 @@ document.getElementById('agList').addEventListener('click', e => {
   const head = e.target.closest('[data-act="toggle"]');
   if (head) { const d = head.closest('[data-date]').dataset.date; ag.open = ag.open === d ? '' : d; renderAgenda(); return; }
   const card = e.target.closest('.appt'); if (!card || e.target.closest('a')) return;
-  const { s } = findSlot(card.dataset.slot); if (!s) return;
+  const { date, s } = findSlot(card.dataset.slot); if (!s) return;
   const act = e.target.closest('button')?.dataset.act;
-  if (act === 'pay') { s.paid = !s.paid; commit(); toast(s.paid ? 'Marcado como pago' : 'Marcado como pendiente'); }
+  // Pendiente: se cobra (total u otro monto). Ya pago: se abre la ficha, donde se puede anular el cobro.
+  if (act === 'pay') { if (isPaid(s)) openSheet(s.id); else chargeTurno(date, s); }
   else if (act === 'att') { s.attend = s.attend === '' ? 'si' : s.attend === 'si' ? 'no' : ''; commit(); }
   else openSheet(s.id);
 });
@@ -1103,7 +1183,7 @@ const PENCIL = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stro
 function renderPrecios() {
   priceEl.innerHTML = state.prices.length ? state.prices.map(p => p.kind === 'note'
     ? `<div class="pr note" data-id="${p.id}"><span class="n">${esc(p.text) || '<i>Texto vacío</i>'}</span><button class="pencil" type="button" aria-label="Editar texto">${PENCIL}</button></div>`
-    : `<div class="pr" data-id="${p.id}"><span class="n">${esc(p.name) || '<i>Sin nombre</i>'}</span><span class="v${p.price ? '' : ' empty'}">${p.price ? money(p.price) : 'Consultar'}</span><button class="pencil" type="button" aria-label="Editar ${esc(p.name)}">${PENCIL}</button></div>`).join('')
+    : `<div class="pr" data-id="${p.id}"><span class="n">${esc(p.name) || '<i>Sin nombre</i>'}${p.extra ? '<small>Adicional: se suma a otro servicio</small>' : ''}</span><span class="v${p.price ? '' : ' empty'}">${p.price ? money(p.price) : 'Consultar'}</span><button class="pencil" type="button" aria-label="Editar ${esc(p.name)}">${PENCIL}</button></div>`).join('')
     : '<p class="empty">Todavía no cargaste servicios.</p>';
 }
 priceEl.addEventListener('click', e => {
@@ -1124,7 +1204,8 @@ function openPriceSheet(id, kind) {
     ${note
       ? `<label class="f">Texto (aparece centrado en la historia de precios) <textarea id="pText" rows="3">${esc(p.text)}</textarea></label>`
       : `<label class="f">Servicio <textarea id="pName" rows="2" placeholder="Ej: Corte + barba">${esc(p.name)}</textarea></label>
-         <label class="f">Precio <input id="pPrice" inputmode="numeric" value="${p.price ? Number(p.price).toLocaleString('es-AR') : ''}" placeholder="Vacío: dice Consultar"></label>`}
+         <label class="f">Precio <input id="pPrice" inputmode="numeric" value="${p.price ? Number(p.price).toLocaleString('es-AR') : ''}" placeholder="Vacío: dice Consultar"></label>
+         <label class="sw" style="justify-content:space-between;text-align:left;font-size:13px;color:var(--fg)">Adicional: se suma a otro servicio (como la Línea)<input type="checkbox" id="pExtra"${p.extra ? ' checked' : ''}></label>`}
     ${isNew ? '' : `<span class="hint">Lugar en la lista</span>
       <div class="btn-row"><button class="btn" type="button" data-act="up" ${i === 0 ? 'disabled' : ''}>↑ Subir</button><button class="btn" type="button" data-act="down" ${i === P.length - 1 ? 'disabled' : ''}>↓ Bajar</button></div>`}
     <div class="btn-row">
@@ -1138,7 +1219,7 @@ function openPriceSheet(id, kind) {
   const close = () => bg.remove();
   const read = () => {
     if (note) p.text = q('#pText').value.trim();
-    else { p.name = q('#pName').value.replace(/\s+/g, ' ').trim(); p.price = Number(q('#pPrice').value.replace(/\D/g, '')) || null; }
+    else { p.name = q('#pName').value.replace(/\s+/g, ' ').trim(); p.price = Number(q('#pPrice').value.replace(/\D/g, '')) || null; p.extra = q('#pExtra').checked; }
   };
   q('#pPrice')?.addEventListener('input', e => { const n = Number(e.target.value.replace(/\D/g, '')); e.target.value = n ? n.toLocaleString('es-AR') : ''; });
   form.addEventListener('submit', e => {
@@ -1167,15 +1248,187 @@ function openPriceSheet(id, kind) {
 document.getElementById('addItem').addEventListener('click', () => openPriceSheet(null, 'item'));
 document.getElementById('addNote').addEventListener('click', () => openPriceSheet(null, 'note'));
 
-/* ---------- Clientes fijos ---------- */
-const WEEK_PLURAL = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
-const fixedWhen = c => `${c.every === 2 ? 'Cada 2 semanas, los' : 'Todos los'} ${WEEK_PLURAL[c.dow]} a las ${shortTime(c.t)}`;
-const fixedEl = document.getElementById('fixedList');
+/* ---------- Clientes y cuentas ---------- */
+// norm y clientFor están en Datos porque los usa la migración al abrir la app.
+const clientById = id => state.clients.find(c => c.id === id);
+const clientOptions = () => `<datalist id="clientNames">${state.clients.map(c => `<option value="${esc(c.name)}">`).join('')}</datalist>`;
+const dm = iso => `${Number(iso.slice(8))}/${Number(iso.slice(5, 7))}`;
+const numIn = el => el.addEventListener('input', () => { const n = Number(el.value.replace(/\D/g, '')); el.value = n ? n.toLocaleString('es-AR') : ''; });
+
+// Cobros: cada turno y cada deuda anotada guardan sus pagos { id, gid, date, amount, via }. Un mismo cobro repartido
+// entre varias deudas comparte gid. via 'credit' es plata que ya estaba a favor: no vuelve a contarse en la caja.
+// Lo que sobra de un cobro queda en client.credits (a favor) con el mismo gid.
+const sumPays = list => (list || []).reduce((n, p) => n + p.amount, 0);
+const dueOf = s => Math.max(0, (s.amount || 0) - sumPays(s.pays));
+const isPaid = s => s.amount ? dueOf(s) === 0 : !!s.paid;
+const payState = s => isPaid(s) ? 'Pago' : sumPays(s.pays) ? `Debe ${money(dueOf(s))}` : 'Pendiente';
+const nowKey = () => { const d = new Date(); return `${toIso(d)} ${toHm(d.getHours() * 60 + d.getMinutes())}`; };
+// Un turno pasa a ser deuda cuando ya pasó, no dice "No asistió" y le falta cobrar algo.
+const isDue = (date, s) => s.taken && s.attend !== 'no' && dueOf(s) > 0 && `${date} ${s.t}` <= nowKey();
+const turnosOf = c => bookings().filter(({ s }) => s.clientId === c.id);
+function creditOf(c) {
+  const used = [...turnosOf(c).flatMap(({ s }) => s.pays || []), ...c.debts.flatMap(d => d.pays || [])].filter(p => p.via === 'credit');
+  return sumPays(c.credits) - sumPays(used);
+}
+// Lo que el cliente debe, de lo más viejo a lo más nuevo: deudas anotadas a mano y turnos pasados sin cobrar.
+function openItems(c) {
+  return [
+    ...c.debts.filter(d => d.amount - sumPays(d.pays) > 0).map(d => ({ kind: 'debt', date: d.date, key: `${d.date} 00:00`, label: d.note || 'Deuda', total: d.amount, due: d.amount - sumPays(d.pays), ref: d })),
+    ...turnosOf(c).filter(({ date, s }) => isDue(date, s)).map(({ date, s }) => ({ kind: 'turno', date, key: `${date} ${s.t}`, label: s.service || 'Turno', total: s.amount, due: dueOf(s), ref: s })),
+  ].sort((a, b) => a.key.localeCompare(b.key));
+}
+// Reparte un cobro entre lo que se debe (lo más viejo primero); lo que sobra queda a favor. Devuelve lo que sobró.
+function applyPayment(c, amount, items, date = toIso(new Date())) {
+  const gid = uid(); let left = amount;
+  for (const it of items) {
+    if (left <= 0) break;
+    const take = Math.min(left, it.due);
+    if (take > 0) { (it.ref.pays ||= []).push({ id: uid(), gid, date, amount: take, via: 'cash' }); left -= take; }
+  }
+  if (left > 0 && c) c.credits.push({ id: uid(), gid, date, amount: left });
+  return left;
+}
+// Lo que el cliente tiene a favor se descuenta solo de lo que debe.
+function useCredits() {
+  const today = toIso(new Date());
+  for (const c of state.clients) {
+    let credit = creditOf(c);
+    for (const it of credit > 0 ? openItems(c) : []) {
+      if (credit <= 0) break;
+      const take = Math.min(credit, it.due);
+      (it.ref.pays ||= []).push({ id: uid(), gid: uid(), date: today, amount: take, via: 'credit' }); credit -= take;
+    }
+  }
+}
+function removeGids(gids) {
+  const g = new Set(gids), drop = list => (list || []).filter(p => !g.has(p.gid));
+  for (const list of Object.values(state.days)) for (const s of list) s.pays = drop(s.pays);
+  for (const c of state.clients) { c.credits = drop(c.credits); for (const d of c.debts) d.pays = drop(d.pays); }
+}
+// Todos los pagos con lo que cubrieron, para el Balance.
+function allPays() {
+  const out = [];
+  for (const [date, list] of Object.entries(state.days)) for (const s of list) for (const p of s.pays || []) out.push({ ...p, rec: p, owner: s, what: `${s.service || 'Turno'} del ${dm(date)}`, who: s.client || 'Sin nombre' });
+  for (const c of state.clients) {
+    for (const d of c.debts) for (const p of d.pays || []) out.push({ ...p, rec: p, owner: d, what: `${d.note || 'Deuda'} del ${dm(d.date)}`, who: c.name });
+    for (const p of c.credits) out.push({ ...p, via: 'deposit', rec: p, owner: null, what: 'quedó a favor', who: c.name });
+  }
+  return out;
+}
+
+// Pregunta cuánto se cobra (el total u otro monto) y muestra cómo queda la cuenta antes de confirmar.
+function askPayment({ title, who, due, credit = 0, onPay }) {
+  const toPay = Math.max(0, due - credit);
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<form class="sheet" aria-label="Cobrar" novalidate>
+    <div class="grab"></div>
+    <h3>${esc(title)}</h3>
+    ${who ? `<p class="hint" style="font-size:14px">${esc(who)}</p>` : ''}
+    <div class="kpis"><div class="kpi warn"><span>Debe</span><b>${money(due)}</b></div>${credit > 0 ? `<div class="kpi ok"><span>Tiene a favor</span><b>${money(Math.min(credit, due))}</b><small>Se descuenta</small></div>` : ''}</div>
+    <div class="seg" id="pMode"><button type="button" data-v="all">Paga el total ${money(toPay)}</button><button type="button" data-v="other">Otro monto</button></div>
+    <label class="f" id="pOtherBox" hidden>Monto que paga <input id="pAmount" inputmode="numeric" placeholder="$"></label>
+    <p class="pay-result" id="pResult"></p>
+    <div class="btn-row">
+      <button class="btn primary" type="submit">Confirmar cobro</button>
+      <button class="btn ghost" type="button" data-act="close">Cancelar</button>
+    </div>
+  </form>`;
+  document.body.appendChild(bg);
+  const form = bg.querySelector('form'), q = sel => form.querySelector(sel), amountIn = q('#pAmount');
+  let mode = 'all';
+  const paid = () => mode === 'all' ? toPay : Number(amountIn.value.replace(/\D/g, '')) || 0;
+  const sync = () => {
+    q('#pMode').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === mode));
+    q('#pOtherBox').hidden = mode !== 'other';
+    const rest = toPay - paid(), r = q('#pResult');
+    r.className = 'pay-result ' + (rest > 0 ? 'bad' : 'ok');
+    r.textContent = rest > 0 ? `Le quedan ${money(rest)} en deuda` : rest < 0 ? `Le quedan ${money(-rest)} a favor` : 'Queda saldado';
+  };
+  sync(); numIn(amountIn);
+  q('#pMode').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; mode = b.dataset.v; sync(); if (mode === 'other') amountIn.focus(); });
+  amountIn.addEventListener('input', sync);
+  const close = () => bg.remove();
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (mode === 'other' && !paid()) { toast('Escribí cuánto paga'); return; }
+    close(); onPay(paid());
+  });
+  form.addEventListener('click', e => { if (e.target.closest('[data-act="close"]')) close(); });
+  bg.addEventListener('click', e => { if (e.target === bg) close(); });
+}
+function chargeTurno(date, s) {
+  if (!s.amount) { s.paid = true; commit(); toast('Marcado como pago (sin monto)'); return; }
+  const c = clientById(s.clientId), credit = c ? Math.max(0, creditOf(c)) : 0;
+  askPayment({
+    title: 'Cobrar turno', who: `${s.client || 'Sin nombre'} · ${s.service || 'Turno'} · ${longDate(date)} ${shortTime(s.t)}`, due: dueOf(s), credit,
+    onPay: cash => {
+      const useC = Math.min(credit, dueOf(s));
+      if (useC) (s.pays ||= []).push({ id: uid(), gid: uid(), date: toIso(new Date()), amount: useC, via: 'credit' });
+      const left = cash > 0 ? applyPayment(c, cash, [{ due: dueOf(s), ref: s }]) : 0;
+      commit();
+      toast(dueOf(s) ? `Cobrado ${money(cash)}: queda debiendo ${money(dueOf(s))}` : left ? `Cobrado ${money(cash)}: le quedan ${money(left)} a favor` : `Cobrado ${money(cash || useC)}`, 2800);
+    },
+  });
+}
+
+/* ---------- Servicios del turno ---------- */
+// Un servicio principal (Corte, Barba, Corte + barba) y los adicionales que se suman (Línea). La Línea también va sola.
+const mainItems = () => priceItems().filter(p => !p.extra);
+const extraItems = () => priceItems().filter(p => p.extra);
+const priceOf = id => state.prices.find(p => p.id === id);
+const svcName = (main, extras) => [priceOf(main)?.name, ...(extras || []).map(id => priceOf(id)?.name)].filter(Boolean).join(' + ');
+const svcPrice = (main, extras) => [main, ...(extras || [])].reduce((n, id) => n + (priceOf(id)?.price || 0), 0);
+function svcPickerHTML(main, extras, oldName) {
+  const ex = extraItems();
+  return `<label class="f">Servicio <select data-svc="main"><option value="">${ex.length ? 'Ninguno (solo adicional)' : 'Sin elegir'}</option>
+      ${mainItems().map(p => `<option value="${p.id}"${p.id === main ? ' selected' : ''}>${esc(p.name)}${p.price ? ' · ' + money(p.price) : ''}</option>`).join('')}
+      ${oldName ? `<option value="__old" selected>${esc(oldName)}</option>` : ''}
+    </select></label>
+    ${ex.length ? `<div class="pick-row" data-svc="extras">${ex.map(p => `<button type="button" class="pick" data-id="${p.id}" aria-pressed="${(extras || []).includes(p.id)}">+ ${esc(p.name)}${p.price ? ' · ' + money(p.price) : ''}</button>`).join('')}</div>` : ''}`;
+}
+function readPicker(form) {
+  return {
+    main: form.querySelector('[data-svc="main"]').value,
+    extras: [...form.querySelectorAll('[data-svc="extras"] .pick[aria-pressed="true"]')].map(b => b.dataset.id),
+  };
+}
+// Conecta el selector: al tocar un adicional se marca, y `onChange` recibe el servicio elegido.
+function wirePicker(form, onChange) {
+  form.querySelector('[data-svc="main"]').addEventListener('change', () => onChange(readPicker(form)));
+  form.querySelector('[data-svc="extras"]')?.addEventListener('click', e => {
+    const b = e.target.closest('.pick'); if (!b || b.disabled) return;
+    b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); onChange(readPicker(form));
+  });
+}
+
+/* ---------- Clientes: fijos y deudores ---------- */
+let cliTab = 'fijos';
+try { cliTab = localStorage.getItem('npl-cli') || 'fijos'; } catch (e) {}
+document.getElementById('cliSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-cli]'); if (!b) return;
+  cliTab = b.dataset.cli; try { localStorage.setItem('npl-cli', cliTab); } catch (err) {}
+  renderClientes();
+});
 function renderClientes() {
+  document.querySelectorAll('#cliSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.cli === cliTab));
+  document.getElementById('cliFijos').hidden = cliTab !== 'fijos';
+  document.getElementById('cliDeudores').hidden = cliTab !== 'deudores';
+  if (cliTab === 'fijos') renderFijos(); else renderDeudores();
+}
+
+// Fijos: todas las semanas, o algunas semanas del mes (1º, 2º… = el primer, segundo… de ese día en el mes).
+const WEEK_PLURAL = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
+const ordList = ns => ns.map(n => n + 'º').join(', ').replace(/, ([^,]*)$/, ' y $1');
+const fixedWhen = c => c.weeks?.length
+  ? `Los ${WEEK_PLURAL[c.dow]} ${ordList(c.weeks)} de cada mes, a las ${shortTime(c.t)}`
+  : `Todos los ${WEEK_PLURAL[c.dow]} a las ${shortTime(c.t)}`;
+const fixedEl = document.getElementById('fixedList');
+function renderFijos() {
   const list = [...state.fixed].sort((a, b) => WEEK_ORDER.indexOf(a.dow) - WEEK_ORDER.indexOf(b.dow) || a.t.localeCompare(b.t));
   fixedEl.innerHTML = list.length ? list.map(c => {
-    const p = state.prices.find(p => p.id === c.serviceId), amt = c.amount ?? p?.price;
-    return `<div class="pr" data-id="${c.id}"><span class="n">${esc(c.name)}<small>${fixedWhen(c)}${p ? ' · ' + esc(p.name) : ''}</small></span><span class="v${amt ? '' : ' empty'}">${amt ? money(amt) : '—'}</span><button class="pencil" type="button" aria-label="Editar ${esc(c.name)}">${PENCIL}</button></div>`;
+    const svc = svcName(c.serviceId, c.extras);
+    return `<div class="pr" data-id="${c.id}"><span class="n">${esc(c.name)}<small>${fixedWhen(c)}${svc ? ' · ' + esc(svc) : ''}</small></span><span class="v${c.amount ? '' : ' empty'}">${c.amount ? money(c.amount) : 'Sin precio'}</span><button class="pencil" type="button" aria-label="Editar ${esc(c.name)}">${PENCIL}</button></div>`;
   }).join('') : '<div class="empty">Todavía no hay clientes fijos.<br>Tocá "+ Cliente fijo" para cargar el primero.</div>';
 }
 fixedEl.addEventListener('click', e => { const r = e.target.closest('[data-id]'); if (r) openFixedSheet(r.dataset.id); });
@@ -1187,26 +1440,29 @@ function fixedClashes(c) {
     .flatMap(([date, list]) => list.filter(s => s.t === c.t && s.taken && s.fixedId !== c.id).map(s => ({ date, s })));
 }
 function openFixedSheet(id) {
-  const isNew = !id, items = priceItems();
-  const c = isNew ? { id: uid(), name: '', phone: '', dow: 5, t: '16:00', every: 1, from: toIso(new Date()), serviceId: '', amount: null, note: '' } : state.fixed.find(x => x.id === id);
+  const isNew = !id;
+  const c = isNew ? { id: uid(), name: '', phone: '', dow: 5, t: '16:00', weeks: [], from: toIso(new Date()), serviceId: '', extras: [], amount: null, note: '' } : state.fixed.find(x => x.id === id);
   if (!c) return;
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
   bg.innerHTML = `<form class="sheet" aria-label="Cliente fijo" novalidate>
     <div class="grab"></div>
     <h3>${isNew ? 'Nuevo cliente fijo' : 'Cliente fijo'}</h3>
-    <label class="f">Cliente <input id="cName" value="${esc(c.name)}" placeholder="Nombre y apellido" autocomplete="off"></label>
+    <label class="f">Cliente <input id="cName" list="clientNames" value="${esc(c.name)}" placeholder="Nombre y apellido" autocomplete="off"></label>
+    ${clientOptions()}
     <div class="fields two">
       <label class="f">Día <select id="cDow">${WEEK_ORDER.map(d => `<option value="${d}"${d === c.dow ? ' selected' : ''}>${cap(DAYS[d])}</option>`).join('')}</select></label>
       <label class="f">Horario <input type="time" id="cTime" value="${c.t}" required></label>
     </div>
     <span class="hint">Frecuencia</span>
-    <div class="seg" id="cEvery"><button type="button" data-v="1">Todas las semanas</button><button type="button" data-v="2">Cada 2 semanas</button></div>
-    <label class="f">Servicio <select id="cService"><option value="">Sin elegir</option>
-      ${items.map(p => `<option value="${p.id}"${p.id === c.serviceId ? ' selected' : ''}>${esc(p.name)}${p.price ? ' · ' + money(p.price) : ''}</option>`).join('')}
-    </select></label>
+    <div class="seg" id="cFreq"><button type="button" data-v="all">Todas las semanas</button><button type="button" data-v="month">Algunas semanas del mes</button></div>
+    <div id="cWeeksBox">
+      <div class="pick-row" id="cWeeks">${[1, 2, 3, 4, 5].map(n => `<button type="button" class="pick" data-n="${n}" aria-pressed="${(c.weeks || []).includes(n)}">${n}º</button>`).join('')}</div>
+      <p class="hint" id="cWeeksHint" style="margin-top:6px"></p>
+    </div>
+    ${svcPickerHTML(c.serviceId, c.extras || [], '')}
     <div class="fields two">
-      <label class="f">Monto <input id="cAmount" inputmode="numeric" value="${c.amount ? Number(c.amount).toLocaleString('es-AR') : ''}" placeholder="Precio del servicio"></label>
+      <label class="f">Precio para este cliente <input id="cAmount" inputmode="numeric" value="${c.amount ? Number(c.amount).toLocaleString('es-AR') : ''}" placeholder="Lo ponés vos"></label>
       <label class="f">Desde <input type="date" id="cFrom" value="${c.from}"></label>
     </div>
     <label class="f">Teléfono <input id="cPhone" type="tel" value="${esc(c.phone)}" placeholder="Opcional" autocomplete="off"></label>
@@ -1220,23 +1476,35 @@ function openFixedSheet(id) {
   </form>`;
   document.body.appendChild(bg);
   const form = bg.querySelector('form'), q = sel => form.querySelector(sel);
-  let every = String(c.every || 1), warned = '';
-  const syncSeg = () => q('#cEvery').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === every));
-  syncSeg();
-  q('#cEvery').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { every = b.dataset.v; syncSeg(); } });
-  q('#cService').addEventListener('change', e => { const p = items.find(x => x.id === e.target.value); q('#cAmount').value = p?.price ? p.price.toLocaleString('es-AR') : ''; });
-  q('#cAmount').addEventListener('input', e => { const n = Number(e.target.value.replace(/\D/g, '')); e.target.value = n ? n.toLocaleString('es-AR') : ''; });
+  let freq = c.weeks?.length ? 'month' : 'all', warned = '';
+  const weeks = () => [...q('#cWeeks').querySelectorAll('[aria-pressed="true"]')].map(b => Number(b.dataset.n));
+  const sync = () => {
+    q('#cFreq').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === freq));
+    q('#cWeeksBox').hidden = freq !== 'month';
+    const w = weeks(), day = WEEK_PLURAL[Number(q('#cDow').value)];
+    q('#cWeeksHint').textContent = w.length
+      ? `Viene los ${day} ${ordList(w)} de cada mes.${w.includes(5) ? ` El 5º solo existe en los meses con cinco ${day}.` : ''}`
+      : `Tocá las semanas en que viene: por ejemplo 1º y 3º es el primer y el tercer ${day.replace(/s$/, '')} de cada mes.`;
+  };
+  sync();
+  q('#cFreq').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { freq = b.dataset.v; sync(); } });
+  q('#cWeeks').addEventListener('click', e => { const b = e.target.closest('.pick'); if (b) { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); sync(); } });
+  q('#cDow').addEventListener('change', sync);
+  wirePicker(form, () => {}); // el precio del fijo lo pone el barbero (hace promos): no se completa solo
+  numIn(q('#cAmount'));
   const close = () => bg.remove();
   form.addEventListener('submit', e => {
     e.preventDefault();
+    const { main, extras } = readPicker(form);
     const next = {
       ...c, name: q('#cName').value.replace(/\s+/g, ' ').trim(), phone: q('#cPhone').value.trim(), note: q('#cNote').value.trim(),
-      dow: Number(q('#cDow').value), t: q('#cTime').value, every: Number(every), from: q('#cFrom').value || toIso(new Date()),
-      serviceId: q('#cService').value, amount: Number(q('#cAmount').value.replace(/\D/g, '')) || null,
+      dow: Number(q('#cDow').value), t: q('#cTime').value, weeks: freq === 'month' ? weeks() : [], from: q('#cFrom').value || toIso(new Date()),
+      serviceId: main, extras, amount: Number(q('#cAmount').value.replace(/\D/g, '')) || null,
     };
     if (!next.name) { toast('Escribí el nombre del cliente'); return; }
     if (!next.t) { toast('Elegí el horario'); return; }
-    const other = state.fixed.find(x => x.id !== c.id && x.dow === next.dow && x.t === next.t);
+    if (freq === 'month' && !next.weeks.length) { toast('Elegí en qué semanas del mes viene', 2400); return; }
+    const other = state.fixed.find(x => x.id !== c.id && x.dow === next.dow && x.t === next.t && (!x.weeks?.length || !next.weeks.length || x.weeks.some(n => next.weeks.includes(n))));
     if (other) { toast(`Ese horario ya es de ${other.name}`, 2600); return; }
     // Tiene prioridad: si pisa turnos ya agendados, se avisa y hay que confirmar.
     const clash = fixedClashes(next), key = clash.map(x => x.s.id).join();
@@ -1246,6 +1514,7 @@ function openFixedSheet(id) {
       box.textContent = `Ese horario ya está agendado: ${clash.map(({ date, s }) => `${longDate(date)} (${s.client || 'sin nombre'})`).join(', ')}. El cliente fijo tiene prioridad y esos turnos se reemplazan. Tocá de nuevo para confirmar.`;
       return;
     }
+    next.clientId = clientFor(next.name, next.phone).id;
     if (isNew) state.fixed.push(next); else Object.assign(c, next);
     close(); commit(); toast(isNew ? `Reservado: ${fixedWhen(next).toLowerCase()}` : 'Guardado', 2600);
   });
@@ -1260,47 +1529,249 @@ function openFixedSheet(id) {
   bg.addEventListener('click', e => { if (e.target === bg) close(); });
 }
 
+// Deudores: las deudas anotadas a mano más los turnos pasados sin cobrar, juntos por cliente.
+let debtSort = 'old', openDebtor = '';
+const debtEl = document.getElementById('debtList');
+function debtorRows() {
+  return state.clients.map(c => {
+    const items = openItems(c), credit = Math.max(0, creditOf(c));
+    return { c, items, credit, total: items.reduce((n, i) => n + i.due, 0) - credit, since: items[0]?.key || '9999', last: items.at(-1)?.key || '' };
+  }).filter(r => r.items.length || r.credit > 0);
+}
+function debtText(r) {
+  const lines = r.items.map(i => `${dm(i.date)} · ${i.label}: ${money(i.due)}`);
+  if (r.credit) lines.push(`A favor: -${money(r.credit)}`);
+  return `Hola ${r.c.name}! Te paso el detalle de tu cuenta en ${state.brand}:\n${lines.join('\n')}\n${r.total >= 0 ? 'Total' : 'A tu favor'}: ${money(Math.abs(r.total))}`;
+}
+function renderDeudores() {
+  document.getElementById('debtSort').value = debtSort;
+  const rows = debtorRows();
+  const sorters = {
+    old: (a, b) => a.since.localeCompare(b.since), new: (a, b) => b.last.localeCompare(a.last),
+    big: (a, b) => b.total - a.total, az: (a, b) => a.c.name.localeCompare(b.c.name, 'es'),
+  };
+  rows.sort(sorters[debtSort]);
+  const owed = rows.filter(r => r.total > 0);
+  document.getElementById('debtSummary').innerHTML = `<span class="pc warn">${owed.length} con deuda</span><span class="pc">${money(owed.reduce((n, r) => n + r.total, 0))} en total</span>${rows.some(r => r.total < 0) ? `<span class="pc ok">${money(-rows.filter(r => r.total < 0).reduce((n, r) => n + r.total, 0))} a favor</span>` : ''}`;
+  debtEl.innerHTML = rows.length ? rows.map(r => {
+    const open = openDebtor === r.c.id, phone = (r.c.phone || '').replace(/\D/g, '');
+    return `<div class="card day debtor${open ? ' open' : ''}" data-cid="${r.c.id}">
+      <div class="day-head" data-act="toggle" role="button" tabindex="0" aria-expanded="${open}">
+        <span class="chev" aria-hidden="true">▶</span>
+        <div class="t"><strong>${esc(r.c.name)}</strong><span>${r.items.length ? `${r.items.length} deuda${r.items.length === 1 ? '' : 's'} · desde el ${dm(r.items[0].date)}` : 'Saldo a favor'}</span></div>
+        <b class="amt${r.total < 0 ? ' fav' : ''}">${r.total < 0 ? 'A favor ' : ''}${money(Math.abs(r.total))}</b>
+      </div>
+      ${open ? `<div class="day-body">
+        ${r.items.map(i => `<div class="dl-row" role="button" tabindex="0" data-kind="${i.kind}" data-ref="${i.ref.id}"><span class="d">${dm(i.date)}</span><span class="n">${esc(i.label)}${i.due !== i.total ? `<small>Pagó ${money(i.total - i.due)} de ${money(i.total)}</small>` : ''}</span><span class="v">${money(i.due)}</span></div>`).join('')}
+        ${r.credit ? `<div class="dl-row credit"><span class="d"></span><span class="n">Saldo a favor</span><span class="v">−${money(r.credit)}</span></div>` : ''}
+        <div class="dl-total"><span>${r.total >= 0 ? 'Total adeudado' : 'A favor'}</span><span>${money(Math.abs(r.total))}</span></div>
+        <div class="btn-row">
+          ${r.total > 0 ? '<button class="btn primary" type="button" data-act="saldar">Saldar deuda</button>' : ''}
+          <button class="btn" type="button" data-act="add">+ Deuda</button>
+        </div>
+        <a class="btn ghost" style="text-align:center;text-decoration:none;color:inherit" target="_blank" rel="noopener" href="https://wa.me/${phone ? (phone.startsWith('54') ? phone : '549' + phone) : ''}?text=${encodeURIComponent(debtText(r))}">Mandar el detalle por WhatsApp</a>
+      </div>` : ''}
+    </div>`;
+  }).join('') : '<div class="card"><div class="empty">Nadie debe nada.<br>Acá aparecen las deudas que anotes y los turnos que ya pasaron sin cobrar.</div></div>';
+}
+document.getElementById('debtSort').addEventListener('change', e => { debtSort = e.target.value; renderDeudores(); });
+document.getElementById('addDebt').addEventListener('click', () => openDebtSheet(null, null));
+debtEl.addEventListener('click', e => {
+  const card = e.target.closest('[data-cid]'); if (!card) return;
+  const c = clientById(card.dataset.cid); if (!c) return;
+  if (e.target.closest('[data-act="toggle"]')) { openDebtor = openDebtor === c.id ? '' : c.id; renderDeudores(); return; }
+  const act = e.target.closest('button')?.dataset.act;
+  if (act === 'add') return openDebtSheet(c, null);
+  if (act === 'saldar') {
+    const r = debtorRows().find(r => r.c.id === c.id); if (!r) return;
+    return askPayment({ title: 'Saldar deuda', who: c.name, due: r.total, onPay: cash => {
+      const left = applyPayment(c, cash, openItems(c)); commit();
+      const rest = debtorRows().find(x => x.c.id === c.id)?.total || 0;
+      toast(rest > 0 ? `Pagó ${money(cash)}: le quedan ${money(rest)} en deuda` : left ? `Pagó ${money(cash)}: le quedan ${money(left)} a favor` : `Pagó ${money(cash)}: deuda saldada`, 3000);
+    } });
+  }
+  const row = e.target.closest('.dl-row[data-ref]'); if (!row) return;
+  if (row.dataset.kind === 'turno') openSheet(row.dataset.ref);
+  else openDebtSheet(c, c.debts.find(d => d.id === row.dataset.ref));
+});
+debtEl.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.target.dataset.act === 'toggle' || e.target.classList.contains('dl-row'))) e.target.click(); });
+// Anotar o editar una deuda a mano, con su fecha y el detalle.
+function openDebtSheet(c, d) {
+  const isNew = !d;
+  d ||= { id: uid(), date: toIso(new Date()), amount: null, note: '', pays: [] };
+  const paid = sumPays(d.pays);
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<form class="sheet" aria-label="Deuda" novalidate>
+    <div class="grab"></div>
+    <h3>${isNew ? 'Anotar deuda' : 'Deuda'}</h3>
+    <label class="f">Cliente <input id="dName" list="clientNames" value="${esc(c?.name || '')}" placeholder="Nombre y apellido" autocomplete="off"${c ? ' disabled' : ''}></label>
+    ${clientOptions()}
+    <div class="fields two">
+      <label class="f">Fecha <input type="date" id="dDate" value="${d.date}"></label>
+      <label class="f">Monto <input id="dAmount" inputmode="numeric" value="${d.amount ? Number(d.amount).toLocaleString('es-AR') : ''}" placeholder="$"></label>
+    </div>
+    <label class="f">Detalle <textarea id="dNote" rows="2" placeholder="Ej: Corte y barba">${esc(d.note)}</textarea></label>
+    ${paid ? `<p class="hint">Ya pagó ${money(paid)} de esta deuda.</p>` : ''}
+    <div class="btn-row">
+      <button class="btn primary" type="submit">Guardar</button>
+      <button class="btn ghost" type="button" data-act="close">Cancelar</button>
+    </div>
+    ${isNew ? '' : '<button class="btn danger" type="button" data-act="del">Borrar deuda</button>'}
+  </form>`;
+  document.body.appendChild(bg);
+  const form = bg.querySelector('form'), q = sel => form.querySelector(sel);
+  numIn(q('#dAmount'));
+  const close = () => bg.remove();
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const amount = Number(q('#dAmount').value.replace(/\D/g, '')) || 0;
+    const who = c || clientFor(q('#dName').value);
+    if (!who) { toast('Escribí el nombre del cliente'); return; }
+    if (!amount) { toast('Poné el monto de la deuda'); return; }
+    Object.assign(d, { date: q('#dDate').value || toIso(new Date()), amount, note: q('#dNote').value.trim() });
+    if (isNew) who.debts.push(d);
+    openDebtor = who.id; cliTab = 'deudores';
+    close(); commit(); toast(isNew ? `Deuda anotada a ${who.name}` : 'Guardado');
+  });
+  form.addEventListener('click', e => {
+    const b = e.target.closest('button'), act = b?.dataset.act;
+    if (act === 'close') close();
+    if (act === 'del') {
+      if (!b.dataset.confirm) { b.dataset.confirm = '1'; b.textContent = 'Tocá de nuevo para borrar'; return; }
+      c.debts = c.debts.filter(x => x !== d); close(); commit(); toast('Deuda borrada');
+    }
+  });
+  bg.addEventListener('click', e => { if (e.target === bg) close(); });
+}
+
 /* ---------- Balance ---------- */
-let balMonth = monthKey(toIso(new Date()));
+// Lo cobrado es caja: cuenta en el mes en que entró la plata. Los turnos (total, por cobrar, por servicio) cuentan en el
+// mes del turno. "No asistió" es solo informativo: no suma ni genera deuda.
+let balMonth = monthKey(toIso(new Date())), movDay = '';
 function renderBalance() {
   document.getElementById('monthLabel').textContent = monthName(balMonth);
   const list = bookings().filter(b => monthKey(b.date) === balMonth);
-  const noShow = list.filter(b => b.s.attend === 'no' && !b.s.paid);
-  const counted = list.filter(b => !(b.s.attend === 'no' && !b.s.paid));
-  const paid = counted.filter(b => b.s.paid).reduce((n, b) => n + (b.s.amount || 0), 0);
-  const pend = counted.filter(b => !b.s.paid).reduce((n, b) => n + (b.s.amount || 0), 0);
-  const lost = noShow.reduce((n, b) => n + (b.s.amount || 0), 0);
+  const noShow = list.filter(b => b.s.attend === 'no');
+  const counted = list.filter(b => b.s.attend !== 'no');
+  const cash = allPays().filter(p => monthKey(p.date) === balMonth && p.via !== 'credit');
+  const cobrado = sumPays(cash), nCobros = new Set(cash.map(p => p.gid)).size;
+  const total = counted.reduce((n, b) => n + (b.s.amount || 0), 0);
+  const pendList = counted.filter(b => dueOf(b.s) > 0 && !isPaid(b.s)), pend = pendList.reduce((n, b) => n + dueOf(b.s), 0);
   document.getElementById('kpis').innerHTML = `
-    <div class="kpi ok"><span>Cobrado</span><b>${money(paid)}</b><small>${counted.filter(b => b.s.paid).length} turno${counted.filter(b => b.s.paid).length === 1 ? '' : 's'} pago${counted.filter(b => b.s.paid).length === 1 ? '' : 's'}</small></div>
-    <div class="kpi warn"><span>Por cobrar</span><b>${money(pend)}</b><small>${counted.filter(b => !b.s.paid).length} turno${counted.filter(b => !b.s.paid).length === 1 ? '' : 's'} sin cobrar</small></div>
-    <div class="kpi"><span>Total del mes</span><b>${money(paid + pend)}</b><small>${counted.length} turnos</small></div>
-    <div class="kpi"><span>No asistieron</span><b>${noShow.length}</b><small>${lost ? money(lost) + ' que no se cobraron' : 'Sin ausencias'}</small></div>`;
+    <div class="kpi ok"><span>Cobrado</span><b>${money(cobrado)}</b><small>${nCobros} cobro${nCobros === 1 ? '' : 's'} en el mes</small></div>
+    <div class="kpi warn"><span>Por cobrar</span><b>${money(pend)}</b><small>${pendList.length} turno${pendList.length === 1 ? '' : 's'} con saldo</small></div>
+    <div class="kpi"><span>Turnos del mes</span><b>${money(total)}</b><small>${counted.length} turno${counted.length === 1 ? '' : 's'}</small></div>
+    <div class="kpi"><span>No asistieron</span><b>${noShow.length}</b><small>Solo para tu registro</small></div>`;
+  // Por servicio: el principal se queda con el monto menos los adicionales; cada adicional suma su precio.
   const by = {};
+  const add = (k, amount, frac) => { by[k] ||= { n: 0, paid: 0, pend: 0 }; by[k].n++; by[k].paid += amount * frac; by[k].pend += amount * (1 - frac); };
   for (const { s } of counted) {
-    const k = s.service || 'Sin servicio';
-    by[k] ||= { n: 0, paid: 0, pend: 0 };
-    by[k].n++; by[k][s.paid ? 'paid' : 'pend'] += s.amount || 0;
+    const amount = s.amount || 0, frac = isPaid(s) ? 1 : amount ? Math.min(1, sumPays(s.pays) / amount) : 0;
+    const ex = (s.extras || []).map(priceOf).filter(Boolean), exSum = ex.reduce((n, p) => n + (p.price || 0), 0);
+    const main = priceOf(s.serviceId)?.name || (ex.length ? '' : s.service || 'Sin servicio');
+    if (main) add(main, Math.max(0, amount - exSum), frac);
+    for (const p of ex) add(p.name, Math.min(p.price || 0, main ? p.price || 0 : amount), frac);
   }
   const rows = Object.entries(by).sort((a, b) => (b[1].paid + b[1].pend) - (a[1].paid + a[1].pend));
   const max = Math.max(1, ...rows.map(([, v]) => v.paid + v.pend));
   document.getElementById('bySvc').innerHTML = rows.length ? rows.map(([k, v]) => `
-    <div class="svc-row"><span class="n">${esc(k)} <span class="hint">· ${v.n} turno${v.n === 1 ? '' : 's'}</span></span><span class="v">${money(v.paid + v.pend)}</span>
+    <div class="svc-row"><span class="n">${esc(k)} <span class="hint">· ${v.n} ${v.n === 1 ? 'vez' : 'veces'}</span></span><span class="v">${money(v.paid + v.pend)}</span>
       <div class="bar"><i class="p" style="width:${v.paid / max * 100}%"></i><i class="q" style="width:${v.pend / max * 100}%"></i></div></div>`).join('')
     : '<p class="empty">No hay turnos agendados en este mes.</p>';
-  const debts = counted.filter(b => !b.s.paid).sort((a, b) => (a.date + a.s.t).localeCompare(b.date + b.s.t));
-  document.getElementById('debts').innerHTML = debts.length ? debts.map(({ date, s }) => `
-    <div class="debt" data-slot="${s.id}"><div class="n"><b>${esc(s.client || 'Sin nombre')}</b><span>${longDate(date)} · ${shortTime(s.t)} · ${esc(s.service || 'Sin servicio')}</span></div>
-      <span class="v">${s.amount ? money(s.amount) : '—'}</span><button type="button" data-act="cobrar">Cobrado</button></div>`).join('')
+  document.getElementById('debts').innerHTML = pendList.length ? pendList.sort((a, b) => (a.date + a.s.t).localeCompare(b.date + b.s.t)).map(({ date, s }) => `
+    <div class="debt" data-slot="${s.id}"><div class="n"><b>${esc(s.client || 'Sin nombre')}</b><span>${longDate(date)} · ${shortTime(s.t)} · ${esc(s.service || 'Sin servicio')}${sumPays(s.pays) ? ` · pagó ${money(sumPays(s.pays))}` : ''}</span></div>
+      <span class="v">${money(dueOf(s))}</span><button type="button" data-act="cobrar">Cobrar</button></div>`).join('')
     : '<p class="hint">No hay nada pendiente de cobro este mes.</p>';
+  renderMovs(list);
 }
-document.getElementById('prevMonth').addEventListener('click', () => { const [y, m] = balMonth.split('-').map(Number); balMonth = toIso(new Date(y, m - 2, 1)).slice(0, 7); renderBalance(); });
-document.getElementById('nextMonth').addEventListener('click', () => { const [y, m] = balMonth.split('-').map(Number); balMonth = toIso(new Date(y, m, 1)).slice(0, 7); renderBalance(); });
+// Movimientos del mes: turnos, cobros y deudas anotadas, por día. Tocando uno se edita, se ajusta o se borra.
+function renderMovs(list) {
+  const groups = {};
+  for (const p of allPays().filter(p => monthKey(p.date) === balMonth)) (groups[p.gid] ||= []).push(p);
+  const movs = [
+    ...list.map(({ date, s }) => ({ date, key: `${date} ${s.t}`, kind: 'turno', id: s.id, title: `${shortTime(s.t)} · ${s.client || 'Sin nombre'}`, sub: `Turno · ${s.service || 'Sin servicio'} · ${s.attend === 'no' ? 'No asistió' : payState(s)}`, v: s.amount ? money(s.amount) : '—', cls: '' })),
+    ...Object.entries(groups).map(([gid, parts]) => {
+      const credit = parts.every(p => p.via === 'credit'), amount = sumPays(parts);
+      return { date: parts[0].date, key: `${parts[0].date} 99`, kind: 'pay', id: gid, title: `${credit ? 'Usó saldo a favor' : 'Cobro'} · ${parts[0].who}`, sub: parts.map(p => p.via === 'deposit' ? `${money(p.amount)} quedó a favor` : p.what).join(', '), v: (credit ? '' : '+') + money(amount), cls: credit ? '' : 'in' };
+    }),
+    ...state.clients.flatMap(c => c.debts.filter(d => monthKey(d.date) === balMonth).map(d => ({ date: d.date, key: `${d.date} 98`, kind: 'debt', id: d.id, cid: c.id, title: `Deuda anotada · ${c.name}`, sub: d.note || 'Sin detalle', v: money(d.amount), cls: 'out' }))),
+  ].sort((a, b) => a.key.localeCompare(b.key));
+  const days = [...new Set(movs.map(m => m.date))];
+  if (movDay && !days.includes(movDay)) movDay = '';
+  document.getElementById('movDay').innerHTML = `<option value="">Todo el mes (${movs.length})</option>` + days.map(d => `<option value="${d}"${d === movDay ? ' selected' : ''}>${longDate(d)}</option>`).join('');
+  const shown = movs.filter(m => !movDay || m.date === movDay);
+  let last = '';
+  document.getElementById('movList').innerHTML = shown.length ? shown.map(m => {
+    const head = m.date !== last ? `<div class="mov-day">${longDate(m.date)}</div>` : ''; last = m.date;
+    return `${head}<div class="mov" role="button" tabindex="0" data-kind="${m.kind}" data-id="${m.id}"${m.cid ? ` data-cid="${m.cid}"` : ''}><b>${esc(m.title)}</b><span>${esc(m.sub)}</span><span class="v ${m.cls}">${m.v}</span></div>`;
+  }).join('') : '<p class="hint">No hay movimientos en este mes.</p>';
+}
+document.getElementById('movDay').addEventListener('change', e => { movDay = e.target.value; renderBalance(); });
+document.getElementById('movList').addEventListener('click', e => {
+  const m = e.target.closest('.mov'); if (!m) return;
+  if (m.dataset.kind === 'turno') openSheet(m.dataset.id);
+  if (m.dataset.kind === 'pay') openPaySheet(m.dataset.id);
+  if (m.dataset.kind === 'debt') { const c = clientById(m.dataset.cid); openDebtSheet(c, c?.debts.find(d => d.id === m.dataset.id)); }
+});
+document.getElementById('movList').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList.contains('mov')) e.target.click(); });
+const shiftMonth = n => { const [y, m] = balMonth.split('-').map(Number); balMonth = toIso(new Date(y, m - 1 + n, 1)).slice(0, 7); movDay = ''; renderBalance(); };
+document.getElementById('prevMonth').addEventListener('click', () => shiftMonth(-1));
+document.getElementById('nextMonth').addEventListener('click', () => shiftMonth(1));
 document.getElementById('debts').addEventListener('click', e => {
   const row = e.target.closest('[data-slot]'); if (!row) return;
-  const { s } = findSlot(row.dataset.slot);
-  if (e.target.closest('[data-act="cobrar"]')) { s.paid = true; commit(); toast(`${money(s.amount)} cobrado`); }
-  else openSheet(s.id);
+  const { date, s } = findSlot(row.dataset.slot); if (!s) return;
+  if (e.target.closest('[data-act="cobrar"]')) chargeTurno(date, s); else openSheet(s.id);
 });
+// Editar un cobro: cambiar la fecha o el monto (si cubrió una sola cosa), o anularlo.
+function openPaySheet(gid) {
+  const parts = allPays().filter(p => p.gid === gid); if (!parts.length) return;
+  const credit = parts.every(p => p.via === 'credit'), single = parts.length === 1 && parts[0].via !== 'deposit';
+  const bg = document.createElement('div');
+  bg.className = 'sheet-bg';
+  bg.innerHTML = `<form class="sheet" aria-label="Cobro" novalidate>
+    <div class="grab"></div>
+    <h3>${credit ? 'Saldo a favor usado' : 'Cobro'}</h3>
+    <p class="hint" style="font-size:14px">${esc(parts[0].who)}</p>
+    <div>${parts.map(p => `<div class="dl-row"><span class="d">${dm(p.date)}</span><span class="n">${p.via === 'deposit' ? 'Quedó a favor' : esc(p.what)}</span><span class="v">${money(p.amount)}</span></div>`).join('')}</div>
+    <div class="fields two">
+      <label class="f">Fecha <input type="date" id="yDate" value="${parts[0].date}"></label>
+      ${single ? `<label class="f">Monto <input id="yAmount" inputmode="numeric" value="${parts[0].amount.toLocaleString('es-AR')}"></label>` : `<label class="f">Total <input value="${money(sumPays(parts))}" disabled></label>`}
+    </div>
+    ${single ? '' : '<p class="hint">Este cobro se repartió entre varias cosas: para cambiar el monto, anulalo y volvé a cobrar.</p>'}
+    <div class="btn-row">
+      <button class="btn primary" type="submit">Guardar</button>
+      <button class="btn ghost" type="button" data-act="close">Cancelar</button>
+    </div>
+    <button class="btn danger" type="button" data-act="del">Anular ${credit ? 'descuento' : 'cobro'}</button>
+  </form>`;
+  document.body.appendChild(bg);
+  const form = bg.querySelector('form'), q = sel => form.querySelector(sel);
+  if (single) numIn(q('#yAmount'));
+  const close = () => bg.remove();
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const date = q('#yDate').value;
+    if (single) {
+      const n = Number(q('#yAmount').value.replace(/\D/g, '')) || 0, owner = parts[0].owner;
+      if (!n) { toast('Poné el monto o anulá el cobro', 2400); return; }
+      const maxAmt = owner ? (owner.amount || 0) - (sumPays(owner.pays) - parts[0].amount) : n;
+      if (owner && n > maxAmt) { toast(`Máximo ${money(maxAmt)}: es lo que se debía`, 2600); return; }
+      parts[0].rec.amount = n;
+    }
+    if (date) for (const p of parts) p.rec.date = date;
+    close(); commit(); toast('Cobro actualizado');
+  });
+  form.addEventListener('click', e => {
+    const b = e.target.closest('button'), act = b?.dataset.act;
+    if (act === 'close') close();
+    if (act === 'del') {
+      if (!b.dataset.confirm) { b.dataset.confirm = '1'; b.textContent = 'Vuelve a quedar como deuda. Tocá de nuevo'; return; }
+      removeGids([gid]); close(); commit(); toast('Cobro anulado');
+    }
+  });
+  bg.addEventListener('click', e => { if (e.target === bg) close(); });
+}
 
 /* ---------- Ajustes de la historia ---------- */
 const settings = document.getElementById('storySettings');
@@ -1398,26 +1869,31 @@ document.getElementById('backupIn').addEventListener('change', e => {
 /* ---------- Ficha del turno ---------- */
 function openSheet(id, isNew = false) {
   const { date, s } = findSlot(id); if (!s) return;
-  const items = priceItems(), fixed = !!s.fixedId, lock = fixed ? ' disabled' : '';
+  const fixed = !!s.fixedId, lock = fixed ? ' disabled' : '';
+  const oldName = s.service && !s.serviceId && !(s.extras || []).length ? s.service : '';
+  const paidSoFar = sumPays(s.pays);
+  const payText = isPaid(s) ? `Pago${s.amount ? ' · ' + money(s.amount) : ''}` : paidSoFar ? `Pagó ${money(paidSoFar)} · debe ${money(dueOf(s))}` : `Pendiente${s.amount ? ' · ' + money(s.amount) : ''}`;
   const bg = document.createElement('div');
   bg.className = 'sheet-bg';
   bg.innerHTML = `<form class="sheet" aria-label="Turno" novalidate>
     <div class="grab"></div>
     <h3>${longDate(date)}</h3>
-    ${fixed ? '<p class="hint"><span class="st st-fixed" style="font-size:11px;font-weight:600;border-radius:3px;padding:3px 9px">Cliente fijo</span> Este turno está reservado todas las semanas. Para cambiarlo o quitarlo, andá a Clientes. Acá solo marcás el pago y la asistencia.</p>' : ''}
-    <label class="f">Cliente <input id="sClient" value="${esc(s.client)}" placeholder="Nombre y apellido" autocomplete="off"${lock}></label>
+    ${fixed ? '<p class="hint"><span class="st st-fixed" style="font-size:11px;font-weight:600;border-radius:3px;padding:3px 9px">Cliente fijo</span> Este turno está reservado. Para cambiarlo o quitarlo, andá a Clientes. Acá marcás el cobro y la asistencia.</p>' : ''}
+    <label class="f">Cliente <input id="sClient" list="clientNames" value="${esc(s.client)}" placeholder="Nombre y apellido" autocomplete="off"${lock}></label>
+    ${clientOptions()}
     <div class="fields two">
       <label class="f">Horario <input type="time" id="sTime" value="${s.t}" required${lock}></label>
       <label class="f">Monto <input id="sAmount" inputmode="numeric" value="${s.amount ? Number(s.amount).toLocaleString('es-AR') : ''}" placeholder="$"${lock}></label>
     </div>
-    <label class="f">Servicio <select id="sService"${lock}><option value="">Sin elegir</option>
-      ${items.map(p => `<option value="${p.id}"${p.id === s.serviceId ? ' selected' : ''}>${esc(p.name)}${p.price ? ' · ' + money(p.price) : ''}</option>`).join('')}
-      ${s.service && !items.some(p => p.id === s.serviceId) ? `<option value="__old" selected>${esc(s.service)}</option>` : ''}
-    </select></label>
+    <fieldset class="svc-box"${lock}>${svcPickerHTML(s.serviceId, s.extras || [], oldName)}</fieldset>
     <label class="f">Teléfono <input id="sPhone" type="tel" value="${esc(s.phone)}" placeholder="Opcional" autocomplete="off"${lock}></label>
-    <span class="hint">Pago</span>
-    <div class="seg" id="sPay"><button type="button" data-v="0">Pendiente</button><button type="button" data-v="1">Pago</button></div>
-    <span class="hint">Asistencia</span>
+    ${s.taken ? `<span class="hint">Cobro</span>
+    <div class="pay-line"><b class="${isPaid(s) ? 'ok' : 'bad'}">${payText}</b>
+      <div class="btn-row">
+        ${!isPaid(s) ? '<button class="btn" type="button" data-act="cobrar">Cobrar</button>' : ''}
+        ${paidSoFar || s.paid ? '<button class="btn ghost" type="button" data-act="unpay">Anular cobro</button>' : ''}
+      </div></div>` : ''}
+    <span class="hint">Asistencia (solo para tu registro)</span>
     <div class="seg" id="sAtt"><button type="button" data-v="">Sin marcar</button><button type="button" data-v="si">Asistió</button><button type="button" data-v="no">No asistió</button></div>
     <label class="f">Nota <textarea id="sNote" rows="2" placeholder="Opcional"${lock}>${esc(s.note)}</textarea></label>
     ${fixed ? `<div class="btn-row">
@@ -1435,37 +1911,42 @@ function openSheet(id, isNew = false) {
   </form>`;
   document.body.appendChild(bg);
   const form = bg.querySelector('form'), q = sel => form.querySelector(sel);
-  let pay = s.paid ? '1' : '0', att = s.attend || '';
-  const syncSeg = () => {
-    q('#sPay').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === pay));
-    q('#sAtt').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === att));
-  };
+  let att = s.attend || '';
+  const syncSeg = () => q('#sAtt').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === att));
   syncSeg();
-  q('#sPay').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { pay = b.dataset.v; syncSeg(); } });
   q('#sAtt').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { att = b.dataset.v; syncSeg(); } });
-  q('#sService').addEventListener('change', e => { const p = items.find(x => x.id === e.target.value); if (p?.price) q('#sAmount').value = p.price.toLocaleString('es-AR'); });
+  // Al elegir servicio y adicionales, el monto se suma solo (se puede corregir a mano).
+  if (!fixed) wirePicker(form, ({ main, extras }) => { if (main !== '__old') { const n = svcPrice(main, extras); q('#sAmount').value = n ? n.toLocaleString('es-AR') : ''; } });
+  numIn(q('#sAmount'));
   const close = () => bg.remove();
   const readTime = () => { if (q('#sTime').value) s.t = q('#sTime').value; };
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    if (fixed) { Object.assign(s, { paid: pay === '1', attend: att }); close(); commit(); toast('Guardado'); return; }
+  const apply = () => {
+    if (fixed) { s.attend = att; return; }
     readTime();
-    const sv = q('#sService').value, p = items.find(x => x.id === sv);
+    const { main, extras } = readPicker(form), name = q('#sClient').value.replace(/\s+/g, ' ').trim(), phone = q('#sPhone').value.trim();
     Object.assign(s, {
-      taken: true, client: q('#sClient').value.trim(), phone: q('#sPhone').value.trim(), note: q('#sNote').value.trim(),
-      serviceId: p ? p.id : '', service: p ? p.name : sv === '__old' ? s.service : '',
-      amount: Number(q('#sAmount').value.replace(/\D/g, '')) || null, paid: pay === '1', attend: att,
+      taken: true, client: name, clientId: clientFor(name, phone)?.id || '', phone, note: q('#sNote').value.trim(),
+      serviceId: main === '__old' ? '' : main, extras: main === '__old' ? [] : extras, service: main === '__old' ? s.service : svcName(main, extras),
+      amount: Number(q('#sAmount').value.replace(/\D/g, '')) || null, attend: att,
     });
-    close(); commit(); toast(`Agendado ${fmtTime(s.t)}${s.client ? ' · ' + s.client : ''}`);
+  };
+  form.addEventListener('submit', e => {
+    e.preventDefault(); const was = s.taken; apply();
+    close(); commit(); toast(fixed || was ? 'Guardado' : `Agendado ${fmtTime(s.t)}${s.client ? ' · ' + s.client : ''}`);
   });
   form.addEventListener('click', e => {
     const b = e.target.closest('button'), act = b?.dataset.act;
     if (act === 'close') close();
-    if (act === 'client') { close(); setTab('clientes'); openFixedSheet(s.fixedId); }
+    if (act === 'client') { close(); cliTab = 'fijos'; setTab('clientes'); openFixedSheet(s.fixedId); }
     if (act === 'save') { readTime(); close(); commit(); }
+    if (act === 'cobrar') { apply(); close(); commit(); chargeTurno(date, s); }
+    if (act === 'unpay') {
+      if (!b.dataset.confirm) { b.dataset.confirm = '1'; b.textContent = 'Vuelve a quedar sin cobrar. Tocá de nuevo'; return; }
+      removeGids((s.pays || []).map(p => p.gid)); s.paid = false; close(); commit(); toast('Cobro anulado');
+    }
     if (act === 'free') {
       if (!b.dataset.confirm) { b.dataset.confirm = '1'; b.textContent = 'Se borran los datos. Tocá de nuevo'; return; }
-      readTime(); Object.assign(s, slot(s.t), { id: s.id }); close(); commit(); toast(`${fmtTime(s.t)} vuelve a estar libre`);
+      readTime(); removeGids((s.pays || []).map(p => p.gid)); Object.assign(s, slot(s.t), { id: s.id }); close(); commit(); toast(`${fmtTime(s.t)} vuelve a estar libre`);
     }
     if (act === 'delete') {
       if (!b.dataset.confirm) { b.dataset.confirm = '1'; b.textContent = 'Tocá de nuevo para borrar'; return; }
@@ -1508,7 +1989,7 @@ function renderTab() {
   if (tab === 'balance') renderBalance();
 }
 function renderAll() { renderSettings(); renderTab(); if (overlay) refreshOverlay(); }
-const commit = () => { fillDays(rangeDates()); syncFixed(); save(); renderAll(); };
+const commit = () => { fillDays(rangeDates()); syncFixed(); useCredits(); save(); renderAll(); };
 document.querySelector('.tabbar').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) setTab(b.dataset.tab); });
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-go]'); if (!b) return;
@@ -1606,6 +2087,7 @@ makeBackgrounds();
 if (state.reapply) { delete state.reapply; reapplySchedule(); }
 fillDays(rangeDates());
 syncFixed();
+useCredits();
 save();
 setTab(tab);
 // Las letras de Google llegan después del primer dibujo: se vuelve a medir para que nada quede cortado.
@@ -1616,7 +2098,7 @@ document.getElementById('btnSettings').addEventListener('click', () => { renderS
 document.getElementById('settingsClose').addEventListener('click', () => { settingsSheet.hidden = true; });
 settingsSheet.addEventListener('click', e => { if (e.target === settingsSheet) settingsSheet.hidden = true; });
 // Actualizar: borra lo que el celular tenga guardado de la página (no los datos) y la vuelve a pedir al servidor.
-const APP_VERSION = '2026-11-02-napoles-h';
+const APP_VERSION = '2026-11-03-napoles-i';
 // Modo claro / oscuro de la app (las historias tienen sus propios colores).
 function applyTheme(t) {
   if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
