@@ -281,6 +281,7 @@ label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; colo
 .s-credit { position: absolute; left: 0; right: 0; margin: 0 auto; width: fit-content; bottom: 40px; text-transform: uppercase; display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 30px; border-radius: 4px; border: 1.5px solid var(--hair); color: var(--ink); font-size: 19px; font-weight: 500; letter-spacing: .16em; white-space: nowrap; }
 .s-credit b { font-weight: 800; letter-spacing: .2em; }
 .s-credit i { font-style: normal; opacity: .55; }
+.s-credit span { text-transform: none; }
 .s-script { font-size: 40px; font-weight: 300; letter-spacing: .36em; padding-left: .36em; text-transform: uppercase; line-height: 1; color: var(--title); }
 .s-cta { display: none; }
 .s-foot .s-rule { margin-top: 4px; }
@@ -881,7 +882,7 @@ function storyHTML(tpl, kind) {
       <div class="s-services">${svc}</div>
       <div class="s-handle">${esc(state.handle)}</div>
     </div>
-    <div class="s-credit"><span>Hecho por</span> <b>DATAMO</b> <i>·</i> <span>@DATAMO.AR</span></div>
+    <div class="s-credit"><span>By</span> <b>DATAMO</b> <i>-</i> <span>@datamo.ar</span></div>
   </div>`;
 }
 // Achica lo que no entra: el texto de fechas y el bloque de filas/precios.
